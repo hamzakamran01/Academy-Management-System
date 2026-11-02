@@ -1,5 +1,5 @@
 import "server-only";
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { ZodError, type ZodType } from "zod";
 
 /** Typed API error → `{ error: { code, message, details } }` (SRS §8.3). */
@@ -83,6 +83,10 @@ export function route<P = Record<string, string>>(
     try {
       checkOrigin(req);
       const out = await fn(req, (await ctx.params) ?? ({} as P));
+      // Deliver any notifications queued by this write right after the response (BR-NOT-01).
+      if (!SAFE.has(req.method) && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+        after(() => import("./modules/push").then((m) => m.sendPendingPushes(50)).catch(() => {}));
+      }
       if (out instanceof Response) return out;
       return NextResponse.json(out ?? { ok: true });
     } catch (err) {
