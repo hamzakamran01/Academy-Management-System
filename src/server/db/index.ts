@@ -11,12 +11,15 @@ async function open(): Promise<Connection> {
   if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env and paste your connection string.");
   const conn = await connect(url, { max: Number(process.env.DB_POOL_MAX ?? 10) });
   if (url === "pglite://memory") {
+    const demo = process.env.CAMPUSLY_NO_DEMO !== "1";
     // Zero-setup dev: fresh schema + demo academy on every boot.
     const { join } = await import("node:path");
     await runMigrations(conn, join(process.cwd(), "database", "migrations"));
-    const { seedDemo } = await import("./demo");
-    await seedDemo(conn.db);
-    console.log("[campusly] in-memory demo database ready — sign in with 0300 0000001 / Campusly#2026");
+    if (demo) {
+      const { seedDemo } = await import("./demo");
+      await seedDemo(conn.db);
+      console.log("[campusly] in-memory demo database ready — sign in with 0300 0000001 / Campusly#2026");
+    }
   }
   return conn;
 }
