@@ -113,11 +113,17 @@ Sign in at http://localhost:3000 with password **Campusly#2026**:
 
 ### Scheduled jobs
 
-Call `GET /api/v1/cron/tick` every 5–15 minutes with `Authorization: Bearer $CRON_SECRET`
-(`vercel.json` already schedules it on Vercel; Supabase `pg_cron` + `pg_net` or GitHub Actions work too).
-Each tick runs whatever is due in Pakistan time — monthly fee & salary lists (1st, 00:05), lesson-log and
-weekly-plan reminders, results reminders, fee reminders, 7 pm parent summaries, push delivery and cleanup —
-and `job_runs` guarantees each job runs once per period.
+Everything time-based runs through one endpoint, `GET /api/v1/cron/tick` (header `Authorization: Bearer $CRON_SECRET`).
+Each tick runs whatever is due in Pakistan time — monthly fee & salary lists (1st, 00:05), lesson-log and weekly-plan
+reminders, results reminders, fee reminders, 7 pm parent summaries and cleanup — and `job_runs` guarantees each job
+runs once per period, so extra or overlapping ticks are harmless. Push notifications are sent immediately after each
+action and don't depend on the scheduler.
+
+| Where | How |
+|---|---|
+| **Vercel Hobby (free)** | `vercel.json` runs the tick **once a day** at 00:05 PKT (Hobby allows only daily crons) — enough for the monthly lists. |
+| **GitHub Actions (free)** | `.github/workflows/cron.yml` ticks **every 15 minutes** for reminders. Add repo secrets **APP_URL** (your Vercel URL) and **CRON_SECRET** (same as in Vercel): GitHub → Settings → Secrets and variables → Actions. |
+| **Your PC (testing)** | `npm run cron:local` (every 15 min) or `npm run cron:local -- 1` (every minute) while `npm run dev` runs. |
 
 ### Deploying (Vercel + Supabase)
 

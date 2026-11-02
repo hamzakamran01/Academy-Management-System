@@ -18,7 +18,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "vapid": "tsx scripts/vapid.ts"
+    "vapid": "tsx scripts/vapid.ts",
+    "cron:local": "tsx scripts/cron-local.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
