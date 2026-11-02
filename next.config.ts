@@ -33,6 +33,18 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  webpack(config, { isServer }) {
+    if (isServer) {
+      // PGlite (local dev only) and its contrib extensions locate their WASM/tarballs
+      // relative to their own files, so they must be loaded from node_modules, not bundled.
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)),
+        ({ request }: { request?: string }, cb: (err?: Error | null, result?: string) => void) =>
+          request?.startsWith("@electric-sql/pglite") ? cb(null, `import ${request}`) : cb(),
+      ];
+    }
+    return config;
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

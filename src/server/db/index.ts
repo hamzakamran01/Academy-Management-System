@@ -1,15 +1,24 @@
 import "server-only";
-import { connect, type Connection, type Database } from "./connect";
+import { connect, runMigrations, type Connection, type Database } from "./connect";
 import * as schema from "./schema";
 
 declare global {
   var __campuslyDb: Promise<Connection> | undefined;
 }
 
-function open(): Promise<Connection> {
+async function open(): Promise<Connection> {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env and paste your connection string.");
-  return connect(url, { max: Number(process.env.DB_POOL_MAX ?? 10) });
+  const conn = await connect(url, { max: Number(process.env.DB_POOL_MAX ?? 10) });
+  if (url === "pglite://memory") {
+    // Zero-setup dev: fresh schema + demo academy on every boot.
+    const { join } = await import("node:path");
+    await runMigrations(conn, join(process.cwd(), "database", "migrations"));
+    const { seedDemo } = await import("./demo");
+    await seedDemo(conn.db);
+    console.log("[campusly] in-memory demo database ready — sign in with 0300 0000001 / Campusly#2026");
+  }
+  return conn;
 }
 
 // One pool per server process; reused across hot reloads in development.

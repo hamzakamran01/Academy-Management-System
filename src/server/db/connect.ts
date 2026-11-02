@@ -28,7 +28,9 @@ export async function connect(url: string, opts: { max?: number } = {}): Promise
     const { drizzle } = await import("drizzle-orm/pglite");
     const path = url.replace(/^pglite:\/\//, "");
     if (path !== "memory") (await import("node:fs")).mkdirSync(path, { recursive: true });
-    const client = new PGlite(path === "memory" ? undefined : path, { extensions: { pg_trgm, pgcrypto } });
+    const extensions = { pg_trgm, pgcrypto };
+    // Note: `new PGlite(undefined, opts)` silently ignores opts — pass options alone for memory.
+    const client = path === "memory" ? new PGlite({ extensions }) : new PGlite(path, { extensions });
     await client.waitReady;
     // PGlite and postgres.js drizzle instances share the same query-builder API.
     const db = drizzle(client, { schema }) as unknown as Database;
