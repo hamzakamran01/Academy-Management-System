@@ -45,3 +45,12 @@ export const removeSchema = z.object({
   note: optText(300),
   date: zDate,
 });
+
+export const assessmentSchema = z.object({
+  classSubjectId: zId,
+  type: z.enum(["weekly", "monthly", "midterm", "final", "other"]),
+  title: z.string().trim().min(2, "Enter a title").max(80),
+  date: zDate,
+  totalMarks: z.number({ error: "Enter total marks" }).positive("Must be more than 0").max(1000),
+  chapterIds: z.array(zId).max(50).optional(),
+});
