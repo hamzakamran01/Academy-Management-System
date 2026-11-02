@@ -11,6 +11,7 @@ import { progressDashboard } from "./progress";
 import { subjectResultSheet } from "./results";
 import { salariesOverview } from "./salaries";
 import { listStudents } from "./students";
+import { APP_NAME } from "@/lib/brand";
 
 export type ReportKey = "students" | "fee-status" | "unpaid" | "result-sheet" | "teaching-progress" | "finance" | "salaries";
 type Params = { classId?: string; month?: string; classSubjectId?: string };
@@ -109,7 +110,7 @@ export async function reportXlsx(ctx: Ctx, key: ReportKey, p: Params): Promise<{
   const t = await buildReport(ctx, key, p);
   const { name } = await getAcademy(ctx.academyId);
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Campusly";
+  wb.creator = APP_NAME;
   wb.created = new Date();
   const ws = wb.addWorksheet(t.title.slice(0, 31), { views: [{ state: "frozen", ySplit: 4 }] });
   ws.addRow([name]).font = { bold: true, size: 14 };

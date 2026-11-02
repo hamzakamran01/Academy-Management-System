@@ -9,6 +9,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Notice } from "@/components/ui/feedback";
 import { api, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { APP_NAME } from "@/lib/brand";
 
 type BIP = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -38,14 +39,14 @@ export function InstallCard() {
 
   if (standalone) {
     return (
-      <Notice tone="success" icon={Smartphone} title="Campusly is installed">
+      <Notice tone="success" icon={Smartphone} title={`${APP_NAME} is installed`}>
         You're using the app from your home screen.
       </Notice>
     );
   }
   return (
     <Card>
-      <CardHeader title="Add Campusly to your home screen" description="Opens like an app, loads faster and can receive notifications." />
+      <CardHeader title={`Add ${APP_NAME} to your home screen`} description="Opens like an app, loads faster and can receive notifications." />
       <CardBody className="space-y-4">
         {platform === "ios" ? (
           <ol className="space-y-3 text-sm">
@@ -58,7 +59,7 @@ export function InstallCard() {
             <Step n={3}>
               Choose <PlusSquare className="inline size-4 align-text-bottom" aria-hidden /> <b>Add to Home Screen</b>, then <b>Add</b>.
             </Step>
-            <Step n={4}>Open Campusly from your home screen and turn on notifications below.</Step>
+            <Step n={4}>Open {APP_NAME} from your home screen and turn on notifications below.</Step>
           </ol>
         ) : prompt ? (
           <Button
@@ -70,7 +71,7 @@ export function InstallCard() {
               setPrompt(null);
             }}
           >
-            <Download aria-hidden /> Install Campusly
+            <Download aria-hidden /> Install {APP_NAME}
           </Button>
         ) : (
           <ol className="space-y-3 text-sm">
@@ -168,7 +169,7 @@ export function PushCard({ vapidKey, categories, initialMuted, initialSummary, i
         action={state === "on" ? <Badge tone="success">On</Badge> : state === "unknown" ? null : <Badge>Off</Badge>}
       />
       <CardBody className="space-y-4">
-        {state === "unsupported" && <Notice tone="warning">This browser can't receive push notifications. On iPhone, add Campusly to your Home Screen first.</Notice>}
+        {state === "unsupported" && <Notice tone="warning">This browser can't receive push notifications. On iPhone, add {APP_NAME} to your Home Screen first.</Notice>}
         {state === "denied" && <Notice tone="warning">Notifications are blocked. Allow them for this site in your browser settings, then come back.</Notice>}
         {(state === "off" || state === "on") && (
           <Button variant={state === "on" ? "secondary" : "primary"} block loading={busy} onClick={state === "on" ? disable : enable}>

@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
+import { APP_NAME } from "@/lib/brand";
 
-/** Campusly mark — an open book forming a rising "C" arc. */
+/** KMS Campusly mark — an open book forming a rising "C" arc. */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={cn("size-9", className)} aria-hidden>
@@ -22,7 +23,7 @@ export function Logo({ className, subtitle }: { className?: string; subtitle?: s
     <div className={cn("flex items-center gap-2.5", className)}>
       <LogoMark />
       <div className="leading-tight">
-        <p className="text-[17px] font-bold tracking-tight">Campusly</p>
+        <p className="text-[17px] font-bold tracking-tight">{APP_NAME}</p>
         {subtitle && <p className="max-w-40 truncate text-xs text-muted">{subtitle}</p>}
       </div>
     </div>

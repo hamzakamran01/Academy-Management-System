@@ -1,5 +1,6 @@
 import { BookOpenCheck, GraduationCap, ShieldCheck, Wallet } from "lucide-react";
 import { Logo, LogoMark } from "@/components/brand";
+import { APP_NAME } from "@/lib/brand";
 
 const POINTS = [
   { icon: GraduationCap, title: "Results in front of names", text: "Teachers type marks on their phone — parents see them instantly." },
@@ -17,7 +18,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="pointer-events-none absolute -bottom-40 -start-20 size-[30rem] rounded-full bg-[oklch(0.65_0.18_250)]/25 blur-3xl" />
         <div className="relative flex items-center gap-3">
           <LogoMark className="size-10 rounded-xl ring-1 ring-white/25" />
-          <span className="text-xl font-bold tracking-tight">Campusly</span>
+          <span className="text-xl font-bold tracking-tight">{APP_NAME}</span>
         </div>
         <div className="relative mt-auto max-w-md">
           <h1 className="text-4xl font-bold leading-tight tracking-tight">The whole academy, truthfully, on every phone.</h1>
@@ -36,7 +37,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             ))}
           </ul>
         </div>
-        <p className="relative mt-12 text-sm text-white/50">© {new Date().getFullYear()} Campusly</p>
+        <p className="relative mt-12 text-sm text-white/50">© {new Date().getFullYear()} {APP_NAME}</p>
       </aside>
 
       {/* Form side */}
@@ -45,7 +46,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="pointer-events-none absolute -end-20 -top-24 size-72 rounded-full bg-white/10 blur-2xl" />
           <div className="relative flex items-center gap-2.5">
             <LogoMark className="ring-1 ring-white/25 rounded-[11px]" />
-            <span className="text-lg font-bold tracking-tight">Campusly</span>
+            <span className="text-lg font-bold tracking-tight">{APP_NAME}</span>
           </div>
           <p className="relative mt-6 text-2xl font-bold leading-snug">Your academy,<br />in your pocket.</p>
         </div>

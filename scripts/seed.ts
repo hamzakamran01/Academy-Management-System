@@ -2,7 +2,7 @@
  * First-run seed: academy profile, current academic year and the first Super Admin.
  * Prints a one-time setup link where the owner sets their password.
  *
- *   npm run db:seed -- --phone 03001234567 --name "Owner Name" [--academy "Academy Name"]
+ *   npm run db:seed -- --phone 03001234567 --name "Owner Name" [--academy "Academy Name"] [--roles super_admin,admin,teacher,parent]
  *
  * Safe to re-run: reuses the academy and user, issues a fresh setup link.
  */
@@ -20,12 +20,15 @@ async function main() {
     options: {
       phone: { type: "string" },
       name: { type: "string" },
-      academy: { type: "string", default: "Campusly Academy" },
+      academy: { type: "string", default: "Kamran Maths and Science Academy" },
+      roles: { type: "string", default: "super_admin" },
     },
   });
   const phone = normalizePhone(values.phone ?? process.env.SEED_PHONE ?? "");
   const name = values.name ?? process.env.SEED_NAME;
-  if (!phone || !name) {
+  const ALL = ["super_admin", "admin", "teacher", "parent"] as const;
+  const roles = values.roles!.split(",").map((r) => r.trim()).filter((r): r is (typeof ALL)[number] => (ALL as readonly string[]).includes(r));
+  if (!phone || !name || !roles.length) {
     console.error('Usage: npm run db:seed -- --phone 03001234567 --name "Owner Name" [--academy "Academy Name"]');
     process.exit(1);
   }
@@ -66,10 +69,13 @@ async function main() {
         [user] = await tx.insert(s.users).values({ academyId, phone, name }).returning();
         console.log(`✓ User created: ${name} (${phone})`);
       }
-      await tx
-        .insert(s.roleAssignments)
-        .values({ userId: user!.id, role: "super_admin" })
-        .onConflictDoUpdate({ target: [s.roleAssignments.userId, s.roleAssignments.role], set: { active: true } });
+      for (const role of roles) {
+        await tx
+          .insert(s.roleAssignments)
+          .values({ userId: user!.id, role })
+          .onConflictDoUpdate({ target: [s.roleAssignments.userId, s.roleAssignments.role], set: { active: true } });
+      }
+      console.log(`✓ Roles: ${roles.join(", ")}`);
 
       await tx
         .update(s.setupTokens)
@@ -85,7 +91,7 @@ async function main() {
     });
 
     const base = process.env.APP_URL ?? "http://localhost:3000";
-    console.log("\n  Super Admin setup link (valid 7 days, single use):");
+    console.log("\n  Setup link (valid 7 days, single use):");
     console.log(`  ${base}/setup/${token}\n`);
   } finally {
     await conn.close();

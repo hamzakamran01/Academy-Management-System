@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { APP_NAME } from "@/lib/brand";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Campusly",
-    short_name: "Campusly",
+    name: APP_NAME,
+    short_name: APP_NAME,
     description: "Results, teaching progress and fees for your academy.",
     start_url: "/home",
     scope: "/",

@@ -4,6 +4,7 @@ import webpush from "web-push";
 import { db } from "@/server/db";
 import { notifications, pushSubscriptions, users } from "@/server/db/schema";
 import { categoryOf } from "./notifications";
+import { APP_NAME } from "@/lib/brand";
 
 const BACKOFF_MIN = [1, 5, 15]; // BR-NOT-01: 3 attempts
 let configured: boolean | null = null;
@@ -48,7 +49,7 @@ export async function sendPendingPushes(limit = 200): Promise<{ sent: number; sk
       skipped++;
       continue;
     }
-    const payload = JSON.stringify({ title: "Campusly", body: n.pushText ?? n.title, url: n.link ?? "/notifications", tag: n.type });
+    const payload = JSON.stringify({ title: APP_NAME, body: n.pushText ?? n.title, url: n.link ?? "/notifications", tag: n.type });
     let ok = false;
     for (const s of subs) {
       try {
@@ -96,7 +97,7 @@ export async function sendDailySummaries(): Promise<number> {
   let count = 0;
   for (const h of held) {
     const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, h.userId));
-    const payload = JSON.stringify({ title: "Campusly · today", body: `${h.n} update${h.n === 1 ? "" : "s"} about your child — tap to view`, url: "/notifications", tag: "daily-summary" });
+    const payload = JSON.stringify({ title: `${APP_NAME} · today`, body: `${h.n} update${h.n === 1 ? "" : "s"} about your child — tap to view`, url: "/notifications", tag: "daily-summary" });
     for (const s of subs) {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 43_200 });

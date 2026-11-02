@@ -10,6 +10,7 @@ import { AdminHome } from "./admin-home";
 import { OwnerHome } from "./owner-home";
 import { ParentHome } from "./parent-home";
 import { TeacherHome } from "./teacher-home";
+import { APP_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Home" };
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <PageHeader title={`${greeting()}, ${first}`} subtitle={`${academy.name} · ${ROLE_LABEL[ctx.role]}`} bell />
       {sp.welcome === "1" && (
         <Notice tone="success" className="mb-4" title="You're all set">
-          Your password is saved. Add Campusly to your home screen from More → Install app.
+          Your password is saved. Add {APP_NAME} to your home screen from More → Install app.
         </Notice>
       )}
       {sp.denied === "1" && <Notice tone="warning" className="mb-4">That page isn't available for your role.</Notice>}

@@ -4,15 +4,16 @@ import { cookies } from "next/headers";
 import { Toaster } from "sonner";
 import { THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
+import { APP_NAME } from "@/lib/brand";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Campusly", template: "%s · Campusly" },
+  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description: "Results, teaching progress and fees — for owners, teachers and parents.",
-  applicationName: "Campusly",
+  applicationName: APP_NAME,
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Campusly", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
   formatDetection: { telephone: false },
   icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };

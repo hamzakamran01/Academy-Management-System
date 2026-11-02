@@ -42,7 +42,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "Campusly", body: "You have a new update", url: "/notifications", tag: "campusly" };
+  let data = { title: "KMS Campusly", body: "You have a new update", url: "/notifications", tag: "campusly" };
   try {
     data = { ...data, ...event.data.json() };
   } catch (_) {

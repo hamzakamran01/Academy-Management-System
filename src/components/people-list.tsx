@@ -15,6 +15,7 @@ import { formatPhone } from "@/lib/phone";
 import { formatRelative } from "@/lib/format";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import { useMutation } from "@/lib/use-mutation";
+import { APP_NAME } from "@/lib/brand";
 
 export type PersonItem = {
   id: string;
@@ -127,7 +128,7 @@ function AddPersonSheet({ role, onClose, onCreated }: { role: Role; onClose: () 
       open
       onOpenChange={(o) => !o && onClose()}
       title={`Add ${label.toLowerCase()}`}
-      description="If this number already has a Campusly account, the role is added to it."
+      description={`If this number already has a ${APP_NAME} account, the role is added to it.`}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>

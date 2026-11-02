@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/feedback";
 import { Sheet } from "@/components/ui/sheet";
 import { formatPhone, whatsappLink } from "@/lib/phone";
+import { APP_NAME } from "@/lib/brand";
 
 export type SetupLinkInfo = { name: string; phone: string; setupLink: string | null; created?: boolean };
 
@@ -27,7 +28,7 @@ export function SetupLinkSheet({
   if (!info) return null;
   const firstName = info.name.split(" ")[0];
   const message = info.setupLink
-    ? `Assalam-o-Alaikum ${firstName}! Your ${academyName} account on Campusly is ready.\n\nTap this link to set your password (valid for 7 days):\n${info.setupLink}\n\nThen sign in with your mobile number ${formatPhone(info.phone)}.`
+    ? `Assalam-o-Alaikum ${firstName}! Your ${academyName} account on ${APP_NAME} is ready.\n\nTap this link to set your password (valid for 7 days):\n${info.setupLink}\n\nThen sign in with your mobile number ${formatPhone(info.phone)}.`
     : "";
 
   async function copy() {
