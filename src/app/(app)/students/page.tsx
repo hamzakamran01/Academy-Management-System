@@ -5,6 +5,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
 import { todayPkt } from "@/lib/dates";
 import { isStaffAdmin } from "@/lib/roles";
+import { uuidOrUndefined } from "@/lib/validation";
 import { requireCtx } from "@/server/auth/session";
 import { listClasses } from "@/server/modules/org";
 import { listStudents } from "@/server/modules/students";
@@ -19,7 +20,8 @@ type SP = { q?: string; classId?: string; status?: string; feeStatus?: string; p
 
 export default async function StudentsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const ctx = await requireCtx(["super_admin", "admin", "teacher"]);
-  const sp = await searchParams;
+  const raw = await searchParams;
+  const sp = { ...raw, classId: uuidOrUndefined(raw.classId) };
   const admin = isStaffAdmin(ctx.role);
   const page = Math.max(1, Number(sp.page) || 1);
   const status = sp.status === "removed" || sp.status === "all" ? sp.status : "active";

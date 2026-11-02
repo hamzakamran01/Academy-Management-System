@@ -16,3 +16,7 @@ export const zOptText = (max = 500) =>
     .optional()
     .nullable()
     .transform((v) => (v ? v : null));
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** For untrusted URL params on pages: returns the value only if it is a UUID. */
+export const uuidOrUndefined = (v: string | undefined | null) => (v && UUID_RE.test(v) ? v : undefined);
