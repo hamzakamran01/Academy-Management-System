@@ -213,6 +213,7 @@ export async function getClassDetail(ctx: Ctx, id: string) {
       archivedAt: classes.archivedAt,
       academicYearId: classes.academicYearId,
       monthlyFee: classFees.monthlyFee,
+      studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = ${classes.id} and e.to_date is null)`,
     })
     .from(classes)
     .leftJoin(users, eq(users.id, classes.classTeacherId))
