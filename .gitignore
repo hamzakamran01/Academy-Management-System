@@ -52,3 +52,4 @@ desktop.ini
 # local tooling
 .claude/
 .vercel
+.data/

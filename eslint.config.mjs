@@ -8,6 +8,9 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    rules: { "react/no-unescaped-entities": "off" },
+  },
+  {
     ignores: ["node_modules/**", ".next/**", "public/sw.js", "database/**"],
   },
 ];

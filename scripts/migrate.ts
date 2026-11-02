@@ -1,21 +1,19 @@
 /**
- * Applies database/migrations/*.sql in order and records them in drizzle's
- * journal table. Equivalent to running each file by hand in the SQL editor.
+ * Applies database/migrations/*.sql in order (tracked in `_migrations`).
+ * Equivalent to running each file by hand in the Supabase / Neon SQL editor.
  */
 import "dotenv/config";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import { connect, runMigrations } from "../src/server/db/connect";
 
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  const sql = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
+  const conn = await connect(url, { max: 1 });
   try {
-    await migrate(drizzle(sql), { migrationsFolder: "database/migrations" });
-    console.log("✓ Migrations applied");
+    const n = await runMigrations(conn, "database/migrations", console.log);
+    console.log(n ? `✓ ${n} migration(s) applied` : "✓ Database already up to date");
   } finally {
-    await sql.end();
+    await conn.close();
   }
 }
 

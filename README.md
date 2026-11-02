@@ -73,14 +73,25 @@ Phases are ordered by dependency and business priority. Every phase ends with a 
 
 ## Getting started
 
+### Option A — zero setup (embedded Postgres on your machine)
+
 ```bash
 npm install
-cp .env.example .env          # then paste your DATABASE_URL
-# Create the schema — either:
-#   a) open each file in database/migrations in order in the Supabase/Neon SQL editor and run it, or
-#   b) npm run db:migrate
-npm run db:seed               # creates the academy + first Super Admin and prints a setup link
-npm run dev
+echo 'DATABASE_URL="pglite://./.data/campusly"' > .env
+npm run db:migrate
+npm run db:seed -- --phone 03001234567 --name "Your Name" --academy "Your Academy"
+npm run dev            # open the printed setup link and set a password
 ```
+
+> Stop `npm run dev` before running scripts against PGlite — it allows one process at a time.
+
+### Option B — Supabase (staging / production)
+
+1. Create a Supabase project in the **Mumbai (ap-south-1)** region.
+2. In **SQL Editor**, run each file in `database/migrations` in order (`0000` → `0001` → `0002` …).
+   Or paste the pooled connection string into `.env` and run `npm run db:migrate`.
+3. `cp .env.example .env` and set `DATABASE_URL` (Transaction pooler, port 6543).
+4. `npm run db:seed -- --phone 03xxxxxxxxx --name "Owner Name" --academy "Academy Name"`
+5. `npm run dev` and open the printed setup link.
 
 Open http://localhost:3000 on your phone (same Wi-Fi) or in the browser's mobile emulator.

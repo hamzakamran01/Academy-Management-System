@@ -29,7 +29,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  serverExternalPackages: ["@node-rs/argon2", "web-push", "exceljs"],
+  serverExternalPackages: ["@node-rs/argon2", "web-push", "exceljs", "@electric-sql/pglite"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

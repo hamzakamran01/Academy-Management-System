@@ -9,11 +9,10 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { and, eq, isNull } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 import { DEFAULT_SETTINGS } from "../src/lib/settings";
 import { normalizePhone } from "../src/lib/phone";
 import { hashToken, newToken } from "../src/server/auth/crypto";
+import { connect } from "../src/server/db/connect";
 import * as s from "../src/server/db/schema";
 
 async function main() {
@@ -33,8 +32,8 @@ async function main() {
 
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  const sql = postgres(url, { max: 1, prepare: false });
-  const db = drizzle(sql, { schema: s });
+  const conn = await connect(url, { max: 1 });
+  const db = conn.db;
 
   try {
     const token = await db.transaction(async (tx) => {
@@ -89,7 +88,7 @@ async function main() {
     console.log("\n  Super Admin setup link (valid 7 days, single use):");
     console.log(`  ${base}/setup/${token}\n`);
   } finally {
-    await sql.end();
+    await conn.close();
   }
 }
 
