@@ -174,6 +174,22 @@ export async function seedDemo(db: Database): Promise<void> {
     if (sara) await tx.insert(s.studentFees).values({ studentId: sara.id, monthlyFee: 5000, note: "Sibling discount", setBy: owner.id });
 
     await seedTeaching(tx as unknown as Database, { academyId, startYear, today, rand, ownerId: owner.id });
+
+    // Salaries: teachers + one admin; last month paid, this month partly paid
+    const staff = await tx
+      .select({ id: s.users.id, role: s.roleAssignments.role })
+      .from(s.users)
+      .innerJoin(s.roleAssignments, eq(s.roleAssignments.userId, s.users.id))
+      .where(and(eq(s.users.academyId, academyId)));
+    const pay = staff.filter((x) => x.role === "teacher" || x.role === "admin");
+    for (const [i, p] of pay.entries()) {
+      const amount = p.role === "admin" ? 40_000 : 45_000 + (i % 4) * 5_000;
+      await tx.insert(s.salarySettings).values({ userId: p.id, monthlySalary: amount, effectiveFrom: `${startYear}-04-01`, setBy: owner.id });
+      await tx.insert(s.salaryRows).values([
+        { academyId, userId: p.id, month: lastMonth, amount, status: "paid", paidOn: addDays(lastMonth, 30), markedBy: owner.id },
+        { academyId, userId: p.id, month: thisMonth, amount, status: i % 3 === 0 ? "paid" : "pending", paidOn: i % 3 === 0 ? today : null, markedBy: i % 3 === 0 ? owner.id : null },
+      ]);
+    }
   });
 }
 

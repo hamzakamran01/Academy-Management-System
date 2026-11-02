@@ -13,6 +13,7 @@ import { monthStart, todayPkt } from "@/lib/dates";
 import { formatMoney, formatMoneyCompact, formatMonth, formatPercent, formatTime } from "@/lib/format";
 import { requireCtx } from "@/server/auth/session";
 import { financeSummary, financeTrend, monthOptions } from "@/server/modules/fees";
+import { netForMonth } from "@/server/modules/salaries";
 import { GenerateButton } from "../fees/generate-button";
 
 export const metadata: Metadata = { title: "Finance" };
@@ -24,7 +25,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const months = await monthOptions(ctx.academyId);
   const month = sp.month && months.includes(sp.month) ? sp.month : monthStart(todayPkt());
-  const [f, trend] = await Promise.all([financeSummary(ctx, month), financeTrend(ctx, 12)]);
+  const [f, trend, net] = await Promise.all([financeSummary(ctx, month), financeTrend(ctx, 12), netForMonth(ctx, month)]);
   const pct = f.recoveryPct ?? 0;
 
   return (
@@ -88,6 +89,26 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             <StatTile label="Active students" value={f.activeStudents.toLocaleString("en-PK")} icon={Users} tone="primary" href="/students" />
             <StatTile label="At current fees" value={formatMoneyCompact(f.revenueAtCurrentFees)} sub="If everyone pays / month" icon={Landmark} tone="success" />
           </div>
+
+          <Card className="mb-4">
+            <CardBody className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted">Net this month</p>
+                <p className={`tabular text-2xl font-bold tracking-tight ${net.net < 0 ? "text-danger-fg" : "text-success-fg"}`}>{formatMoney(net.net)}</p>
+                <p className="text-[13px] text-muted">Fees recovered − salaries paid</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Salaries</p>
+                <p className="tabular text-2xl font-bold tracking-tight">{formatMoneyCompact(net.salaryPaid)}<span className="text-base font-medium text-muted"> / {formatMoneyCompact(net.salaryBill)}</span></p>
+                <p className="text-[13px] text-muted">paid of bill · <Link href={`/salaries?month=${month}`} className="font-medium text-primary hover:underline">Salaries →</Link></p>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Planned net</p>
+                <p className="tabular text-2xl font-bold tracking-tight">{formatMoney(net.plannedNet)}</p>
+                <p className="text-[13px] text-muted">If all fees come in and all salaries are paid</p>
+              </div>
+            </CardBody>
+          </Card>
 
           {f.feeNotSetCount > 0 && (
             <Notice tone="warning" icon={AlertTriangle} className="mb-4" title={`${f.feeNotSetCount} active student${f.feeNotSetCount === 1 ? " has" : "s have"} no fee set`}>
