@@ -59,15 +59,28 @@ export async function connect(url: string, opts: { max?: number } = {}): Promise
 }
 
 /** Apply database/migrations/*.sql in order, tracking applied files in `_migrations`. */
-export async function runMigrations(conn: Connection, dir: string, log: (m: string) => void = () => {}): Promise<number> {
+export async function runMigrations(
+  conn: Connection,
+  dir: string,
+  log: (m: string) => void = () => {},
+  opts: { baseline?: boolean } = {},
+): Promise<number> {
   const { readdirSync, readFileSync } = await import("node:fs");
   const { join } = await import("node:path");
   await conn.exec(`CREATE TABLE IF NOT EXISTS _migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`);
+  await conn.exec(`ALTER TABLE _migrations ENABLE ROW LEVEL SECURITY`); // hidden from Supabase's public REST API
   const { sql } = await import("drizzle-orm");
   const done = new Set((await rows<{ name: string }>(conn.db, sql`select name from _migrations`)).map((r) => r.name));
   let applied = 0;
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
     if (done.has(file)) continue;
+    if (opts.baseline) {
+      // Schema was applied by hand (e.g. Supabase SQL editor): just record it.
+      await conn.exec(`INSERT INTO _migrations (name) VALUES ('${file.replace(/'/g, "''")}')`);
+      log(`↷ ${file} (marked as applied)`);
+      applied++;
+      continue;
+    }
     const body = readFileSync(join(dir, file), "utf8");
     const statements = body.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean);
     await conn.exec("BEGIN");
