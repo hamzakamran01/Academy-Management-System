@@ -17,6 +17,8 @@ import { getAcademy } from "@/server/modules/academy";
 import { studentFeeRows } from "@/server/modules/fees";
 import { listClasses } from "@/server/modules/org";
 import { getStudentProfile, studentActivity } from "@/server/modules/students";
+import { studentResults } from "@/server/modules/results";
+import { fmtMark } from "@/lib/grades";
 import { ParentRowActions, StudentActions } from "./student-actions";
 
 export const metadata: Metadata = { title: "Student" };
@@ -31,9 +33,10 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
     throw e;
   });
   const admin = isStaffAdmin(ctx.role);
-  const tab = ["details", "fees", "history"].includes(sp.tab ?? "") ? sp.tab! : "details";
+  const tab = ["details", "results", "fees", "history"].includes(sp.tab ?? "") ? sp.tab! : "details";
   const tabs = [
     { key: "details", label: "Details", href: `/students/${id}` },
+    { key: "results", label: "Results", href: `/students/${id}?tab=results` },
     { key: "fees", label: "Fees", href: `/students/${id}?tab=fees` },
     ...(admin ? [{ key: "history", label: "History", href: `/students/${id}?tab=history` }] : []),
   ];
@@ -162,10 +165,45 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
         </div>
       )}
 
+      {tab === "results" && <ResultsTab data={await studentResults(ctx, id)} />}
+
       {tab === "fees" && <FeesTab ctxRole={ctx.role} rows={await studentFeeRows(ctx, id)} />}
 
       {tab === "history" && admin && <HistoryTab history={s.history} activity={await studentActivity(ctx, id)} />}
     </>
+  );
+}
+
+function ResultsTab({ data }: { data: Awaited<ReturnType<typeof studentResults>> }) {
+  if (!data.items.length) return <EmptyState icon={Receipt} title="No published results yet" />;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Badge tone="primary" size="md">Overall {data.overall ?? "—"}% · {data.overallGrade ?? "—"}</Badge>
+        {data.subjects.map((s) => (
+          <Badge key={s.subjectName} size="md">{s.subjectName} {s.average ?? "—"}%</Badge>
+        ))}
+      </div>
+      <ListCard>
+        {data.items.map((t) => (
+          <ListRow
+            key={t.assessmentId}
+            href={`/results/${t.assessmentId}`}
+            title={`${t.subjectName} · ${t.title}`}
+            subtitle={`${formatDate(t.date)}${t.classAverage != null ? ` · class avg ${fmtMark(t.classAverage)}` : ""}${t.position != null ? ` · position ${t.position}/${t.outOf}` : ""}`}
+            trailing={
+              t.absent ? (
+                <Badge>Absent</Badge>
+              ) : (
+                <span className="tabular text-sm font-semibold">
+                  {fmtMark(t.value!)}/{fmtMark(t.totalMarks)} · {t.grade}
+                </span>
+              )
+            }
+          />
+        ))}
+      </ListCard>
+    </div>
   );
 }
 
