@@ -10,6 +10,7 @@ import { ROLE_LABEL } from "@/lib/roles";
 import { requireCtx } from "@/server/auth/session";
 import { getAcademy } from "@/server/modules/academy";
 import { NameCard, SecurityCard } from "./profile-client";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -37,6 +38,15 @@ export default async function ProfilePage() {
         </CardBody>
       </Card>
       <NameCard name={ctx.name} />
+      <Card>
+        <CardBody className="flex items-center justify-between gap-4 pt-4">
+          <div>
+            <p className="font-medium">Appearance</p>
+            <p className="text-[13px] text-muted">Light is the default</p>
+          </div>
+          <ThemeToggle className="w-48" />
+        </CardBody>
+      </Card>
       <Link href="/install" className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 shadow-card hover:bg-surface-2">
         <Bell className="size-5 text-muted" aria-hidden />
         <span className="flex-1 font-medium">App & notifications</span>

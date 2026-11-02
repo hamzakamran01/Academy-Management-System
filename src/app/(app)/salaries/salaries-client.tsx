@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Hourglass, Pencil, RotateCcw } from "lucide-react";
+import { CheckCircle2, Hourglass, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,33 +29,33 @@ export function SalaryList({ items, months, today }: { items: Item[]; months: st
     <>
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
         {items.map((i) => (
-          <li key={i.userId} className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <Avatar name={i.name} />
+          <li key={i.userId} className="flex items-center gap-3 px-4 py-3">
+            <Avatar name={i.name} size="sm" />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{i.name}</p>
-              <p className="truncate text-[13px] text-muted">
-                {i.roles.includes("teacher") ? "Teacher" : "Admin staff"} ·{" "}
-                {i.salary != null ? <span className="tabular font-semibold text-fg">{formatMoney(i.salary)}</span> : <span className="text-warning-fg">Salary not set</span>}
+              <p className="line-clamp-2 font-medium leading-5">{i.name}</p>
+              <p className="text-[13px] text-muted">
+                {i.roles.includes("teacher") ? "Teacher" : "Admin staff"}
                 {i.nextChange && ` · changes ${formatMonth(i.nextChange, true)}`}
               </p>
+              <p className="tabular text-sm font-semibold">
+                {i.salary != null ? formatMoney(i.salary) : <span className="font-medium text-warning-fg">Salary not set</span>}
+              </p>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1">
               {i.row ? (
                 i.row.status === "paid" ? (
                   <button
                     type="button"
                     onClick={() => run(() => api(`/salaries/rows/${i.row!.id}/pending`, { body: {} }), { success: "Marked pending" })}
-                    className="group inline-flex h-10 items-center gap-1.5 rounded-lg bg-success-soft px-3 text-sm font-semibold text-success-fg"
+                    className="inline-flex h-10 items-center gap-1 rounded-lg bg-success-soft px-2.5 text-[13px] font-semibold text-success-fg"
                     aria-label={`${i.name}: paid${i.row.paidOn ? ` on ${formatDate(i.row.paidOn)}` : ""}. Tap to mark pending`}
                     disabled={busy}
                   >
-                    <CheckCircle2 className="size-4 group-hover:hidden" aria-hidden />
-                    <RotateCcw className="hidden size-4 group-hover:block" aria-hidden />
-                    Paid {i.row.paidOn ? formatDate(i.row.paidOn).slice(0, 6) : ""}
+                    <CheckCircle2 className="size-4" aria-hidden /> Paid
                   </button>
                 ) : (
-                  <Button size="sm" variant="success" onClick={() => setPaying(i)}>
-                    <Hourglass aria-hidden /> Mark paid
+                  <Button size="sm" variant="success" onClick={() => setPaying(i)} aria-label={`Pay ${i.name}`}>
+                    <Hourglass aria-hidden /> Pay
                   </Button>
                 )
               ) : (

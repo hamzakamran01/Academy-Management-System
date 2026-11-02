@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shell/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
+import { Fab } from "@/components/fab";
 import { todayPkt } from "@/lib/dates";
 import { isStaffAdmin } from "@/lib/roles";
 import { uuidOrUndefined } from "@/lib/validation";
@@ -53,8 +54,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         actions={
           admin &&
           !moveMode && (
-            <ButtonLink href={sp.classId ? `/students/new?classId=${sp.classId}` : "/students/new"}>
-              <UserPlus aria-hidden /> <span className="hidden sm:inline">Add student</span>
+            <ButtonLink href={sp.classId ? `/students/new?classId=${sp.classId}` : "/students/new"} className="max-lg:hidden">
+              <UserPlus aria-hidden /> Add student
             </ButtonLink>
           )
         }
@@ -78,6 +79,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             today={todayPkt()}
             showFee={true}
           />
+          {admin && !moveMode && <Fab href={sp.classId ? `/students/new?classId=${sp.classId}` : "/students/new"} label="Add student" icon={UserPlus} />}
           {!moveMode && items.length < total && (
             <div className="mt-4 flex justify-center">
               <ButtonLink href={nextHref} variant="secondary" scroll={false}>

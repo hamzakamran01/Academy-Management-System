@@ -32,7 +32,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     <>
       <PageHeader
         title="Finance"
-        subtitle={`Updated ${formatTime(f.asOf)} · amounts visible only to you`}
+        subtitle={`Updated ${formatTime(f.asOf)} · private to you`}
         actions={
           <ButtonLink href="/fees/settings" variant="secondary" size="sm">
             <Settings2 aria-hidden /> <span className="hidden sm:inline">Fee settings</span>

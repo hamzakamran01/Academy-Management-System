@@ -6,6 +6,7 @@ import { ListCard } from "@/components/ui/data";
 import { useLogout, useSwitchRole } from "@/components/shell/nav";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AccountActions({ role, roles }: { role: Role; roles: Role[] }) {
   const switchRole = useSwitchRole();
@@ -14,6 +15,10 @@ export function AccountActions({ role, roles }: { role: Role; roles: Role[] }) {
   return (
     <section>
       <SectionTitle>Account</SectionTitle>
+      <div className="mb-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-3 shadow-card">
+        <span className="ps-1 text-[15px] font-medium">Appearance</span>
+        <ThemeToggle className="w-48" />
+      </div>
       <ListCard>
         {others.map((r) => (
           <button key={r} onClick={() => switchRole(r)} className="flex min-h-14 w-full items-center gap-3 px-4 text-start text-[15px] font-medium hover:bg-surface-2">

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
-import { Select } from "@/components/ui/field";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { LinkTabs } from "@/components/ui/tabs";
 import { todayPkt } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
@@ -20,20 +20,18 @@ import { ParentResults } from "./parent-results";
 
 export const metadata: Metadata = { title: "Results" };
 
-export default async function ResultsPage({ searchParams }: { searchParams: Promise<{ tab?: string; classId?: string; student?: string; test?: string }> }) {
+export default async function ResultsPage({ searchParams }: { searchParams: Promise<{ tab?: string; classId?: string; student?: string; test?: string; new?: string }> }) {
   const ctx = await requireCtx();
   const sp = await searchParams;
   if (ctx.role === "parent") return <ParentResults ctx={ctx} studentId={uuidOrUndefined(sp.student)} highlight={uuidOrUndefined(sp.test)} />;
 
-  const tab = sp.tab === "published" ? "published" : "draft";
   const classId = uuidOrUndefined(sp.classId);
   const admin = isStaffAdmin(ctx.role);
-  const [items, options, classes, draftCount] = await Promise.all([
-    listAssessments(ctx, { classId, status: tab }),
-    classSubjectOptions(ctx),
-    listClasses(ctx),
-    listAssessments(ctx, { classId, status: "draft" }).then((r) => r.length),
-  ]);
+  const [drafts, options, classes] = await Promise.all([listAssessments(ctx, { classId, status: "draft" }), classSubjectOptions(ctx), listClasses(ctx)]);
+  const draftCount = drafts.length;
+  // Open on what needs attention; if nothing is unfinished, show published results.
+  const tab = sp.tab === "published" || (sp.tab !== "draft" && draftCount === 0) ? "published" : "draft";
+  const items = tab === "draft" ? drafts : await listAssessments(ctx, { classId, status: "published" });
   const q = (t: string) => `/results?tab=${t}${classId ? `&classId=${classId}` : ""}`;
   const sheetCs = classId ? options.filter((o) => o.classId === classId) : [];
 
@@ -45,19 +43,18 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
         actions={
           <div className="flex gap-2">
             {admin && <CreateExamButton classes={classes.map((c) => ({ id: c.id, name: c.name }))} today={todayPkt()} />}
-            <CreateTestButton options={options} today={todayPkt()} />
+            <CreateTestButton options={options} today={todayPkt()} preselect={uuidOrUndefined(sp.new)} />
           </div>
         }
       />
       <form className="mb-2 flex gap-2" action="/results">
         <input type="hidden" name="tab" value={tab} />
-        <Select name="classId" defaultValue={classId ?? ""} className="h-10 w-auto min-w-40 text-sm" aria-label="Class">
+        <AutoSubmitSelect name="classId" defaultValue={classId ?? ""} className="h-10 w-auto min-w-40 text-sm" aria-label="Class">
           <option value="">All classes</option>
           {classes.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
-        </Select>
-        <button className="h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium hover:bg-surface-2">Filter</button>
+        </AutoSubmitSelect>
       </form>
       {sheetCs.length > 0 && (
         <div className="no-scrollbar -mx-4 mb-2 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -99,7 +96,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
                   {a.correctionRequestedAt && a.status === "published" && <Badge tone="info" className="mt-1">Correction requested</Badge>}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <StatusBadge status={a.status} />
+                  {a.status !== "published" && <StatusBadge status={a.status} />}
                   {a.status !== "published" && <span className="tabular text-xs text-muted">{a.entered} entered</span>}
                 </div>
                 <ChevronRight className="size-5 shrink-0 text-subtle" aria-hidden />

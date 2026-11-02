@@ -64,7 +64,7 @@ export async function seedDemo(db: Database): Promise<void> {
     const mkUser = async (name: string, phone: string, roles: s.Role[], withPassword = true) => {
       const [u] = await tx
         .insert(s.users)
-        .values({ academyId, name, phone, passwordHash: withPassword ? passwordHash : null, lastActiveAt: withPassword ? new Date() : null })
+        .values({ academyId, name, phone, passwordHash: withPassword ? passwordHash : null, lastActiveAt: withPassword ? new Date() : null, lastLoginAt: withPassword ? new Date() : null })
         .returning();
       await tx.insert(s.roleAssignments).values(roles.map((role) => ({ userId: u!.id, role })));
       return u!;
@@ -174,6 +174,31 @@ export async function seedDemo(db: Database): Promise<void> {
     if (sara) await tx.insert(s.studentFees).values({ studentId: sara.id, monthlyFee: 5000, note: "Sibling discount", setBy: owner.id });
 
     await seedTeaching(tx as unknown as Database, { academyId, startYear, today, rand, ownerId: owner.id });
+
+    // Announcements, a few notifications and activity so every screen has life in the demo
+    const [hol] = await tx
+      .insert(s.announcements)
+      .values([
+        { academyId, title: "Iqbal Day holiday — 9 November", body: "The academy will remain closed on Monday, 9 November for Iqbal Day. Classes resume on Tuesday.", audienceType: "all", pinned: true, authorId: owner.id, publishedAt: new Date(Date.now() - 2 * 3600_000) },
+        { academyId, title: "Monthly tests next week", body: "Monthly tests for all classes start next Monday. Please make sure your child revises chapters covered this month.", audienceType: "parents", authorId: owner.id, publishedAt: new Date(Date.now() - 26 * 3600_000) },
+        { academyId, title: "Staff meeting on Saturday", body: "All teachers please join the staff meeting at 1:30 pm on Saturday to review weekly plans and syllabus pace.", audienceType: "teachers", authorId: owner.id, publishedAt: new Date(Date.now() - 50 * 3600_000) },
+      ])
+      .returning();
+    const raza = (await tx.select({ id: s.users.id }).from(s.users).where(eq(s.users.phone, "+923000000004")))[0]!;
+    await tx.insert(s.notifications).values([
+      { userId: raza.id, role: "parent", type: "announcement", title: "Iqbal Day holiday — 9 November", body: "The academy will remain closed on Monday, 9 November for Iqbal Day.", link: `/announcements#a-${hol!.id}`, pushCancelledAt: new Date() },
+      { userId: raza.id, role: "parent", type: "homework.posted", title: "English homework", body: "English: exercise questions 1–5 — due in 3 days", link: "/homework", pushCancelledAt: new Date(), createdAt: new Date(Date.now() - 5 * 3600_000) },
+      { userId: raza.id, role: "parent", type: "fee.paid", title: "October fee received", body: "Ali Raza's fee for October is marked Paid.", link: "/fees", readAt: new Date(), pushCancelledAt: new Date(), createdAt: new Date(Date.now() - 30 * 86_400_000) },
+      { userId: ayesha.id, role: "teacher", type: "plan.comment", title: "New comment on your weekly plan", body: "Hamza Kamran: Great pace in 9-A — please add a revision day before the monthly test.", link: "/plans", pushCancelledAt: new Date() },
+      { userId: owner.id, role: "super_admin", type: "system.monthly_rows", title: "Monthly lists created", body: "Fee rows and salary rows for this month were created automatically.", link: "/finance", pushCancelledAt: new Date() },
+    ]);
+    await tx.insert(s.activityLog).values([
+      { academyId, actorId: owner.id, actorRole: "super_admin", action: "fee.class_set", entityType: "class", summary: "Set FSc Pre-Medical – Evening monthly fee to Rs 8,000", before: { monthlyFee: 7500 }, after: { monthlyFee: 8000 }, sensitivity: "finance_amount", at: new Date(Date.now() - 6 * 86_400_000) },
+      { academyId, actorId: owner.id, actorRole: "super_admin", action: "student.add", entityType: "student", summary: "Added Sara Raza (CL-26) to Grade 10 – A", at: new Date(Date.now() - 4 * 86_400_000) },
+      { academyId, actorId: ayesha.id, actorRole: "teacher", action: "assessment.publish", entityType: "assessment", summary: "Published Physics “Weekly test 4”", at: new Date(Date.now() - 7 * 86_400_000) },
+      { academyId, actorId: ayesha.id, actorRole: "teacher", action: "fee_row.mark_paid", entityType: "fee_row", summary: "Marked paid: Abdullah Abbasi, November 2026", before: { status: "unpaid" }, after: { status: "paid" }, at: new Date(Date.now() - 3600_000) },
+      { academyId, actorId: owner.id, actorRole: "super_admin", action: "salary.mark_paid", entityType: "salary_row", summary: "Paid October salary of Ayesha Khan", sensitivity: "salary", at: new Date(Date.now() - 2 * 86_400_000) },
+    ]);
 
     // Salaries: teachers + one admin; last month paid, this month partly paid
     const staff = await tx

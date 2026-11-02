@@ -1,13 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { cookies } from "next/headers";
 import { Toaster } from "sonner";
+import { THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Campusly", template: "%s · Campusly" },
-  description: "Attendance, results, teaching progress and fees — for owners, teachers and parents.",
+  description: "Results, teaching progress and fees — for owners, teachers and parents.",
   applicationName: "Campusly",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Campusly", statusBarStyle: "default" },
@@ -19,15 +21,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8f9fc" },
-    { media: "(prefers-color-scheme: dark)", color: "#13151f" },
-  ],
+  themeColor: "#f8f9fc",
+  colorScheme: "light",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Light is the default; dark only when the user chose it (saved per device).
+  const dark = (await cookies()).get(THEME_COOKIE)?.value === "dark";
   return (
-    <html lang="en" dir="ltr" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" dir="ltr" className={inter.variable} data-theme={dark ? "dark" : undefined} suppressHydrationWarning>
       <body>
         {children}
         <Toaster

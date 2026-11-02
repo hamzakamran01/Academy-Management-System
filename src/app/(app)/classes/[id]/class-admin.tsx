@@ -166,7 +166,7 @@ export function RemoveClassButton({ classId, name, studentCount }: { classId: st
         description={
           count > 0
             ? undefined
-            : "The class is archived. Its attendance, results and fee history stay available in reports."
+            : "The class is archived. Its results, teaching and fee history stay available in reports."
         }
         footer={
           count > 0 ? (

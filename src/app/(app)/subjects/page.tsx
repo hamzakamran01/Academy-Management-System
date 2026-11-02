@@ -12,7 +12,7 @@ export default async function SubjectsPage() {
   return (
     <>
       <PageHeader title="Subjects" subtitle="Academy-wide subject list" back="/more" />
-      <SubjectsClient subjects={subjects.map(({ archivedAt: _a, ...s }) => s)} />
+      <SubjectsClient subjects={subjects.map((s) => ({ id: s.id, name: s.name, code: s.code, classCount: s.classCount }))} />
     </>
   );
 }

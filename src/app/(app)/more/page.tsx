@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/shell/page-header";
 import { Avatar } from "@/components/ui/data";
 import { SectionTitle } from "@/components/ui/card";
-import { MENU } from "@/lib/nav";
+import { BOTTOM_NAV, MENU } from "@/lib/nav";
 import { formatPhone } from "@/lib/phone";
 import { ROLE_LABEL } from "@/lib/roles";
 import { requireCtx } from "@/server/auth/session";
@@ -14,6 +14,9 @@ export const metadata: Metadata = { title: "More" };
 
 export default async function MorePage() {
   const ctx = await requireCtx();
+  // Items already on the bottom bar aren't repeated here.
+  const onBar = new Set(BOTTOM_NAV[ctx.role].map((i) => i.href));
+  const groups = MENU[ctx.role].map((g) => ({ ...g, items: g.items.filter((i) => !onBar.has(i.href)) })).filter((g) => g.items.length);
   return (
     <>
       <PageHeader title="More" />
@@ -29,7 +32,7 @@ export default async function MorePage() {
       </Link>
 
       <div className="space-y-5">
-        {MENU[ctx.role].map((group) => (
+        {groups.map((group) => (
           <section key={group.label}>
             <SectionTitle>{group.label}</SectionTitle>
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">

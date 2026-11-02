@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar } from "@/components/ui/data";
 import { api, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -121,6 +122,7 @@ function AccountBox({ role, roles, name }: { role: Role; roles: Role[]; name: st
     <div className="relative border-t border-border p-3">
       {open && (
         <div className="absolute inset-x-3 bottom-full mb-2 rounded-xl border border-border bg-surface p-1.5 shadow-raised">
+          <ThemeToggle className="mb-1.5" />
           <Link href="/profile" className="flex h-10 items-center rounded-lg px-3 text-sm hover:bg-surface-2" onClick={() => setOpen(false)}>
             Profile & security
           </Link>
@@ -168,6 +170,8 @@ export function useLogout() {
   const router = useRouter();
   return async () => {
     await api("/auth/logout", { body: {} }).catch(() => {});
+    // Drop cached pages on shared phones (SRS §8.2: cleared on logout).
+    navigator.serviceWorker?.controller?.postMessage("clear");
     router.replace("/login");
     router.refresh();
   };

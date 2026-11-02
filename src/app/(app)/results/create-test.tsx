@@ -43,10 +43,11 @@ function TypeChips({ value, onChange }: { value: T; onChange: (t: T) => void }) 
   );
 }
 
-export function CreateTestButton({ options, today }: { options: { id: string; className: string; subjectName: string }[]; today: string }) {
+export function CreateTestButton({ options, today, preselect }: { options: { id: string; className: string; subjectName: string }[]; today: string; preselect?: string }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [cs, setCs] = useState(options.length === 1 ? options[0]!.id : "");
+  const pre = preselect && options.some((o) => o.id === preselect) ? preselect : undefined;
+  const [open, setOpen] = useState(!!pre);
+  const [cs, setCs] = useState(pre ?? (options.length === 1 ? options[0]!.id : ""));
   const [type, setType] = useState<T>("weekly");
   const [title, setTitle] = useState(DEFAULT_TITLE.weekly);
   const [date, setDate] = useState(today);
@@ -132,7 +133,7 @@ export function CreateExamButton({ classes, today }: { classes: { id: string; na
   return (
     <>
       <Button variant="secondary" onClick={() => setOpen(true)}>
-        <Layers aria-hidden /> <span className="hidden sm:inline">Whole-class exam</span>
+        <Layers aria-hidden /> <span className="sm:hidden">Exam</span><span className="hidden sm:inline">Whole-class exam</span>
       </Button>
       <Sheet
         open={open}

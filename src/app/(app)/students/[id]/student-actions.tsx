@@ -129,7 +129,7 @@ function MoveSheet({ id, name, classes, today, onClose, readmit }: { id: string;
       open
       onOpenChange={(o) => !o && onClose()}
       title={readmit ? `Re-admit ${name}` : `Move ${name}`}
-      description={readmit ? "Keeps the same registration number and all history." : "Old attendance, results and fees stay in history. The new class's teachers see the student from the chosen date."}
+      description={readmit ? "Keeps the same registration number and all history." : "Old results and fees stay in history. The new class's teachers see the student from the chosen date."}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>

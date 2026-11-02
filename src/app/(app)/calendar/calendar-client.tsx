@@ -31,7 +31,7 @@ export function WorkingDays({ yearId, initial, editable }: { yearId: string; ini
   const dirty = [...days].sort().join() !== [...initial].sort().join();
   return (
     <Card>
-      <CardHeader title="Working days" description="Attendance and syllabus pace count only these days." />
+      <CardHeader title="Working days" description="Syllabus pace and reminders count only these days." />
       <CardBody>
         <div className="grid grid-cols-7 gap-1.5">
           {DAYS.map((d) => {
@@ -117,7 +117,7 @@ export function Holidays({ holidays, editable, today }: { holidays: Holiday[]; e
     <Card>
       <CardHeader
         title="Holidays"
-        description="Visible to everyone. Excluded from attendance and syllabus pace."
+        description="Visible to everyone. Excluded from syllabus pace and reminders."
         action={
           editable && (
             <Button size="sm" variant="soft" onClick={() => setAdding(true)}>

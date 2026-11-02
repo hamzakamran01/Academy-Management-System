@@ -100,7 +100,7 @@ export function ClassFormSheet({
             </div>
           )}
         </Field>
-        <Field label="Class teacher" optional hint="Marks daily attendance for this class">
+        <Field label="Class teacher" optional hint="The teacher in charge of this class">
           {(p) => (
             <Select {...p} value={v.classTeacherId ?? ""} onChange={(e) => set("classTeacherId", e.target.value || null)}>
               <option value="">Not assigned</option>

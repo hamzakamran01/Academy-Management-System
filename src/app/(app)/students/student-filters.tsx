@@ -16,7 +16,10 @@ export function StudentFilters({ classes, showStatus }: { classes: { id: string;
 
   const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(patch)) v ? next.set(k, v) : next.delete(k);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
     next.delete("page");
     start(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
   };
@@ -36,7 +39,7 @@ export function StudentFilters({ classes, showStatus }: { classes: { id: string;
 
   return (
     <div className={cn("mb-4 space-y-3 transition-opacity", pending && "opacity-70")}>
-      <SearchInput placeholder="Name, roll no., reg. no. or parent phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
+      <SearchInput placeholder="Search name, roll no. or phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
       <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <Select
           aria-label="Class"

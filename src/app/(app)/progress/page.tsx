@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/feedback";
-import { Select } from "@/components/ui/field";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { todayPkt } from "@/lib/dates";
 import { formatDate, formatRelative } from "@/lib/format";
 import { isStaffAdmin } from "@/lib/roles";
@@ -55,13 +55,12 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
 
       {admin && (
         <form action="/progress" className="mb-4 flex gap-2">
-          <Select name="classId" defaultValue={classId ?? ""} className="h-10 w-auto min-w-40 text-sm" aria-label="Class">
+          <AutoSubmitSelect name="classId" defaultValue={classId ?? ""} className="h-10 w-auto min-w-40 text-sm" aria-label="Class">
             <option value="">All classes</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
-          </Select>
-          <button className="h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium hover:bg-surface-2">Filter</button>
+          </AutoSubmitSelect>
         </form>
       )}
 

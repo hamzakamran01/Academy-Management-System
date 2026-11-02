@@ -49,45 +49,44 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: oklch(0.165 0.018 268);
-    --surface: oklch(0.205 0.02 268);
-    --surface-2: oklch(0.24 0.022 268);
-    --surface-3: oklch(0.28 0.024 268);
-    --border: oklch(0.3 0.022 268);
-    --border-strong: oklch(0.38 0.025 268);
-    --fg: oklch(0.95 0.008 264);
-    --muted: oklch(0.74 0.018 264);
-    --subtle: oklch(0.6 0.018 264);
+/* Dark theme is opt-in only: set data-theme="dark" on <html>. Light is the default everywhere. */
+:root[data-theme="dark"] {
+  --bg: oklch(0.165 0.018 268);
+  --surface: oklch(0.205 0.02 268);
+  --surface-2: oklch(0.24 0.022 268);
+  --surface-3: oklch(0.28 0.024 268);
+  --border: oklch(0.3 0.022 268);
+  --border-strong: oklch(0.38 0.025 268);
+  --fg: oklch(0.95 0.008 264);
+  --muted: oklch(0.74 0.018 264);
+  --subtle: oklch(0.6 0.018 264);
 
-    --primary: oklch(0.68 0.16 268);
-    --primary-hover: oklch(0.74 0.15 268);
-    --primary-fg: oklch(0.16 0.03 268);
-    --primary-soft: oklch(0.3 0.07 268);
-    --primary-soft-fg: oklch(0.86 0.08 268);
+  --primary: oklch(0.68 0.16 268);
+  --primary-hover: oklch(0.74 0.15 268);
+  --primary-fg: oklch(0.16 0.03 268);
+  --primary-soft: oklch(0.3 0.07 268);
+  --primary-soft-fg: oklch(0.86 0.08 268);
 
-    --success: oklch(0.7 0.14 155);
-    --success-soft: oklch(0.3 0.06 155);
-    --success-fg: oklch(0.86 0.1 155);
-    --warning: oklch(0.8 0.14 75);
-    --warning-soft: oklch(0.32 0.06 70);
-    --warning-fg: oklch(0.88 0.11 80);
-    --danger: oklch(0.7 0.17 25);
-    --danger-soft: oklch(0.32 0.08 25);
-    --danger-fg: oklch(0.88 0.08 25);
-    --info: oklch(0.72 0.12 235);
-    --info-soft: oklch(0.3 0.06 240);
-    --info-fg: oklch(0.86 0.07 235);
-    --neutral-soft: oklch(0.28 0.016 266);
-    --neutral-fg: oklch(0.82 0.014 266);
+  --success: oklch(0.7 0.14 155);
+  --success-soft: oklch(0.3 0.06 155);
+  --success-fg: oklch(0.86 0.1 155);
+  --warning: oklch(0.8 0.14 75);
+  --warning-soft: oklch(0.32 0.06 70);
+  --warning-fg: oklch(0.88 0.11 80);
+  --danger: oklch(0.7 0.17 25);
+  --danger-soft: oklch(0.32 0.08 25);
+  --danger-fg: oklch(0.88 0.08 25);
+  --info: oklch(0.72 0.12 235);
+  --info-soft: oklch(0.3 0.06 240);
+  --info-fg: oklch(0.86 0.07 235);
+  --neutral-soft: oklch(0.28 0.016 266);
+  --neutral-fg: oklch(0.82 0.014 266);
 
-    --ring: oklch(0.72 0.15 268 / 0.5);
-    --chart-1: #7a80ee;
-    --chart-grid: oklch(0.3 0.02 268);
-    --shadow-color: 230 40% 2%;
-    color-scheme: dark;
-  }
+  --ring: oklch(0.72 0.15 268 / 0.5);
+  --chart-1: #7a80ee;
+  --chart-grid: oklch(0.3 0.02 268);
+  --shadow-color: 230 40% 2%;
+  color-scheme: dark;
 }
 
 @theme inline {

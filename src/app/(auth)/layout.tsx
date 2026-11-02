@@ -49,7 +49,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
           <p className="relative mt-6 text-2xl font-bold leading-snug">Your academy,<br />in your pocket.</p>
         </div>
-        <div className="-mt-12 flex flex-1 justify-center px-4 pb-10 lg:mt-0 lg:items-center lg:px-12">
+        <div className="relative z-10 -mt-12 flex flex-1 justify-center px-4 pb-10 lg:mt-0 lg:items-center lg:px-12">
           <div className="w-full max-w-[420px]">
             <div className="rounded-2xl border border-border bg-surface p-6 shadow-raised sm:p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
               <Logo className="mb-8 hidden lg:flex" />

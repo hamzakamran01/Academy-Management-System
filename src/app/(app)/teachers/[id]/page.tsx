@@ -13,6 +13,9 @@ import { requireCtx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
 import { getAcademy } from "@/server/modules/academy";
 import { teacherProfile } from "@/server/modules/users";
+import { teacherSummary } from "@/server/modules/admin";
+import { TeacherSummaryGrid } from "@/components/teacher-summary";
+import { addDays, todayPkt } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Teacher" };
 
@@ -23,7 +26,7 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   });
-  const academy = await getAcademy(ctx.academyId);
+  const [academy, summary] = await Promise.all([getAcademy(ctx.academyId), teacherSummary(ctx, id, addDays(todayPkt(), -27), todayPkt())]);
 
   return (
     <>
@@ -45,9 +48,16 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
         </CardBody>
       </Card>
 
+      <Card className="mb-5">
+        <CardHeader title="Last 4 weeks" description="Shown separately — no combined score" />
+        <CardBody>
+          <TeacherSummaryGrid s={summary} compact />
+        </CardBody>
+      </Card>
+
       {t.classTeacherOf.length > 0 && (
         <Card className="mb-5">
-          <CardHeader title="Class teacher of" description="Marks daily attendance for these classes" />
+          <CardHeader title="Class teacher of" description="In charge of these classes" />
           <CardBody className="flex flex-wrap gap-2">
             {t.classTeacherOf.map((c) => (
               <Badge key={c.id} tone="primary" size="md" icon={Crown}>{c.name}</Badge>

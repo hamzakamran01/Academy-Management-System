@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Campusly",
     short_name: "Campusly",
-    description: "Attendance, results, teaching progress and fees for your academy.",
+    description: "Results, teaching progress and fees for your academy.",
     start_url: "/home",
     scope: "/",
     display: "standalone",

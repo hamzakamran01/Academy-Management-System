@@ -1,50 +1,46 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/shell/page-header";
-import { CardLink } from "@/components/ui/card";
 import { Notice } from "@/components/ui/feedback";
-import { MENU } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/roles";
+import { uuidOrUndefined } from "@/lib/validation";
 import { requireCtx } from "@/server/auth/session";
 import { getAcademy } from "@/server/modules/academy";
+import { adminDashboard, ownerDashboard, parentDashboard, teacherDashboard } from "@/server/modules/dashboards";
+import { AdminHome } from "./admin-home";
+import { OwnerHome } from "./owner-home";
+import { ParentHome } from "./parent-home";
+import { TeacherHome } from "./teacher-home";
 
 export const metadata: Metadata = { title: "Home" };
+export const dynamic = "force-dynamic";
 
 function greeting(): string {
   const h = Number(new Intl.DateTimeFormat("en-PK", { timeZone: "Asia/Karachi", hour: "numeric", hour12: false }).format(new Date()));
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-/** Role home. Full dashboards (PRD §4.2) are composed here in the Dashboards phase. */
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ welcome?: string; denied?: string }> }) {
+/** Role homes (PRD §4.2, FR-DSH-01…04). */
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ welcome?: string; denied?: string; student?: string }> }) {
   const ctx = await requireCtx();
   const [academy, sp] = await Promise.all([getAcademy(ctx.academyId), searchParams]);
-  const items = MENU[ctx.role].flatMap((g) => g.items).filter((i) => i.href !== "/home");
+  const first = ctx.name.split(" ")[0];
+
+  let body: React.ReactNode;
+  if (ctx.role === "super_admin") body = <OwnerHome d={await ownerDashboard(ctx)} />;
+  else if (ctx.role === "admin") body = <AdminHome d={await adminDashboard(ctx)} />;
+  else if (ctx.role === "teacher") body = <TeacherHome d={await teacherDashboard(ctx)} />;
+  else body = <ParentHome d={await parentDashboard(ctx, uuidOrUndefined(sp.student))} />;
 
   return (
     <>
-      <PageHeader title={`${greeting()}, ${ctx.name.split(" ")[0]}`} subtitle={`${academy.name} · ${ROLE_LABEL[ctx.role]}`} bell />
+      <PageHeader title={`${greeting()}, ${first}`} subtitle={`${academy.name} · ${ROLE_LABEL[ctx.role]}`} bell />
       {sp.welcome === "1" && (
         <Notice tone="success" className="mb-4" title="You're all set">
-          Your password is saved. Add Campusly to your home screen for one-tap access.
+          Your password is saved. Add Campusly to your home screen from More → Install app.
         </Notice>
       )}
-      {sp.denied === "1" && (
-        <Notice tone="warning" className="mb-4">That page isn't available for your role.</Notice>
-      )}
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map(({ href, label, icon: Icon }) => (
-          <li key={href}>
-            <CardLink href={href}>
-              <span className="flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-fg">
-                  <Icon className="size-5" aria-hidden />
-                </span>
-                <span className="font-medium">{label}</span>
-              </span>
-            </CardLink>
-          </li>
-        ))}
-      </ul>
+      {sp.denied === "1" && <Notice tone="warning" className="mb-4">That page isn't available for your role.</Notice>}
+      {body}
     </>
   );
 }

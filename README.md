@@ -15,7 +15,7 @@ teaching progress, fees and salaries.
 | Layer | Choice |
 |---|---|
 | App | Next.js 15 (App Router) · React 19 · TypeScript (strict) |
-| UI | Tailwind CSS v4 design tokens · Radix primitives · lucide icons · mobile-first (360 px) |
+| UI | Tailwind CSS v4 design tokens · Radix primitives · lucide icons · mobile-first (360 px) · light by default with an opt-in Dark theme (More → Appearance) |
 | Data | PostgreSQL 16 (Supabase recommended, Mumbai region) · Drizzle ORM · plain SQL migrations |
 | Auth | Phone + password · Argon2id · DB-backed sessions in HttpOnly cookies · role context per session |
 | Validation | Zod schemas shared by UI and API |
@@ -53,7 +53,7 @@ Rules every module follows:
 
 ## Execution plan
 
-Phases are ordered by dependency and business priority. Every phase ends with a working, committed slice.
+Phases are ordered by dependency and business priority. Every phase ends with a working, tested slice.
 
 | # | Phase | Scope | PRD refs | Status |
 |---|---|---|---|---|
@@ -66,32 +66,78 @@ Phases are ordered by dependency and business priority. Every phase ends with a 
 | 6 | **Fees** | Class/personal fees, monthly rows, mark paid with undo, overviews, Finance | FEE-01…14 | ✅ |
 | 7 | **Results** | Tests, marks in front of names, publish/lock/unlock/correct, stats, trends | RES-01…11 | ✅ |
 | 8 | **Teaching progress** | Syllabus builder, weekly plan, lesson log, homework, coverage/expected/status | TPR-01…13 | ✅ |
-| 9 | **Salaries** | Salary settings, monthly rows, mark paid, My Salary, net | SAL-01…06 | 🔄 |
-| 10 | **Notifications** | Announcements, notification centre, web push, reminders | NOT-01…05 | ⏳ |
-| 11 | **Dashboards & reports** | Role homes, people status, exports, activity log, settings | DSH, ADM | ⏳ |
-| 12 | **Hardening** | Offline queue, permission test suite, accessibility & performance pass | SRS §7, §11 | ⏳ |
+| 9 | **Salaries** | Salary settings, monthly rows, mark paid, My Salary, net | SAL-01…06 | ✅ |
+| 10 | **Notifications** | Announcements, notification centre, web push, reminders | NOT-01…05 | ✅ |
+| 11 | **Dashboards & reports** | Role homes, people status, exports, activity log, settings | DSH, ADM | ✅ |
+| 12 | **Hardening** | Offline queue, permission test suite, accessibility & performance pass | SRS §7, §11 | ✅ |
 
 ## Getting started
 
-### Option A — zero setup (embedded Postgres on your machine)
+### Option A — instant demo (no database to set up)
 
 ```bash
 npm install
-echo 'DATABASE_URL="pglite://./.data/campusly"' > .env
-npm run db:migrate
-npm run db:seed -- --phone 03001234567 --name "Your Name" --academy "Your Academy"
-npm run dev            # open the printed setup link and set a password
+echo 'DATABASE_URL="pglite://memory"' > .env
+npm run dev
 ```
 
-> Stop `npm run dev` before running scripts against PGlite — it allows one process at a time.
+An in-memory Postgres boots with every migration applied and a realistic demo academy (4 classes,
+~50 students, syllabi with lesson history, published tests, fees and salaries). It resets on restart.
+Sign in at http://localhost:3000 with password **Campusly#2026**:
+
+| Role | Mobile |
+|---|---|
+| Owner (Super Admin) | 0300 0000001 |
+| Admin | 0300 0000002 |
+| Teacher | 0300 0000003 |
+| Parent (2 children) | 0300 0000004 |
 
 ### Option B — Supabase (staging / production)
 
 1. Create a Supabase project in the **Mumbai (ap-south-1)** region.
-2. In **SQL Editor**, run each file in `database/migrations` in order (`0000` → `0001` → `0002` …).
-   Or paste the pooled connection string into `.env` and run `npm run db:migrate`.
+2. In **SQL Editor**, run each file in `database/migrations` in order: `0000` → `0001` → `0002` → `0003` …
+   (or put the connection string in `.env` and run `npm run db:migrate`; if you already ran files by hand,
+   run `npm run db:migrate -- --baseline` once so they're recorded).
 3. `cp .env.example .env` and set `DATABASE_URL` (Transaction pooler, port 6543).
-4. `npm run db:seed -- --phone 03xxxxxxxxx --name "Owner Name" --academy "Academy Name"`
-5. `npm run dev` and open the printed setup link.
+4. `npm run db:seed -- --phone 03xxxxxxxxx --name "Owner Name" --academy "Academy Name"` → prints the owner's setup link.
+5. `npm run dev` and open the setup link.
 
-Open http://localhost:3000 on your phone (same Wi-Fi) or in the browser's mobile emulator.
+### Environment variables
+
+| Variable | Needed for |
+|---|---|
+| `DATABASE_URL` | Postgres connection (or `pglite://memory` for the demo) |
+| `APP_URL` | Public URL used inside setup links shared on WhatsApp |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web push — generate with `npm run vapid` |
+| `CRON_SECRET` | Protects `/api/v1/cron/*` |
+
+### Scheduled jobs
+
+Call `GET /api/v1/cron/tick` every 5–15 minutes with `Authorization: Bearer $CRON_SECRET`
+(`vercel.json` already schedules it on Vercel; Supabase `pg_cron` + `pg_net` or GitHub Actions work too).
+Each tick runs whatever is due in Pakistan time — monthly fee & salary lists (1st, 00:05), lesson-log and
+weekly-plan reminders, results reminders, fee reminders, 7 pm parent summaries, push delivery and cleanup —
+and `job_runs` guarantees each job runs once per period.
+
+### Deploying (Vercel + Supabase)
+
+1. Import the repo in Vercel, set the environment variables above (`APP_URL` = your domain).
+2. Run the migrations against Supabase (step 2 above), then the seed script once for the owner.
+3. Deploy. The owner opens the setup link, then adds classes, subjects, teachers and students.
+
+## Quality
+
+```bash
+npm run typecheck   # strict TypeScript
+npm run lint
+npm test            # 42 tests on a real in-memory Postgres
+```
+
+The suite covers the PRD/SRS acceptance tests: exact finance totals (222,000 / 176,500 / 45,500 / 79.5 %),
+fee-job idempotency, fee-change rules, teacher fee privacy, salary privacy, coverage/expected/status maths,
+marks validation, result lock & correction with audit trail, and a role-by-role permission suite.
+
+## Scope notes
+
+- **Attendance** is deferred by the owner; its tables exist so it can be switched on later without a migration.
+- Urdu interface, printable report cards (PDF) and CSV student import are planned for R1.1 (PRD §11.2).

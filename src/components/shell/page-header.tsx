@@ -43,7 +43,7 @@ export function PageHeader({
         )}
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold tracking-tight lg:text-2xl">{title}</h1>
-          {subtitle && <p className="truncate text-[13px] text-muted lg:mt-0.5 lg:text-sm">{subtitle}</p>}
+          {subtitle && <p className="line-clamp-2 text-[13px] leading-[18px] text-muted lg:mt-0.5 lg:text-sm">{subtitle}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
         {bell && <BellLink />}

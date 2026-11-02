@@ -120,6 +120,7 @@ export const MENU: Record<Role, NavGroup[]> = {
     { label: "Me", items: [
       { href: "/my-progress", label: "My progress", icon: ListChecks },
       { href: "/my-salary", label: "My salary", icon: Banknote },
+      { href: "/reports", label: "Reports", icon: FileBarChart },
     ] },
     { label: "Communication", items: [
       { href: "/announcements", label: "Announcements", icon: Megaphone },

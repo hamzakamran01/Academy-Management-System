@@ -64,7 +64,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
         <StatTile label="Students" value={studentCount} sub={cls.capacity ? `of ${cls.capacity} seats` : undefined} icon={Users} />
         <StatTile label="Subjects" value={cls.subjects.length} icon={BookOpen} tone="info" />
         {cls.monthlyFee !== undefined && (
-          <StatTile label="Monthly fee" value={cls.monthlyFee != null ? formatMoney(cls.monthlyFee) : "Not set"} icon={Wallet} tone="success" href={ctx.role === "super_admin" ? "/fees/settings" : undefined} />
+          <StatTile label="Monthly fee" value={cls.monthlyFee != null ? formatMoney(cls.monthlyFee) : "Not set"} icon={Wallet} tone="success" href={ctx.role === "super_admin" ? "/fees/settings" : undefined} className="col-span-2 lg:col-span-1" />
         )}
       </div>
 

@@ -53,7 +53,7 @@ export function StudentList({
           Everyone is selected. Untick anyone who should stay, then choose the new class.
         </Notice>
       )}
-      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+      <ul className="mb-20 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card lg:mb-0">
         {rows.map((r) => {
           const on = selected.includes(r.id);
           const body = (
@@ -68,7 +68,7 @@ export function StudentList({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-medium">{r.name}</p>
                 <p className="truncate text-[13px] text-muted">
-                  {r.className ? `${r.className} · Roll ${r.rollNo}` : "No class"} · {r.registrationNo}
+                  {r.className ? `${r.className} · Roll ${r.rollNo}` : `No class · ${r.registrationNo}`}
                 </p>
               </div>
               {r.status === "removed" ? (
@@ -107,7 +107,7 @@ export function StudentList({
         open={open}
         onOpenChange={setOpen}
         title={`Move ${selected.length} student${selected.length === 1 ? "" : "s"}`}
-        description="Attendance, results and fees so far stay in history. New roll numbers are assigned in the new class."
+        description="Results and fees so far stay in history. New roll numbers are assigned in the new class."
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
