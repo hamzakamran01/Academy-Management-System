@@ -16,10 +16,8 @@ dist/
 *.tsbuildinfo
 next-env.d.ts
 
-# service worker build artefacts
-public/sw.js
+# service worker build artefacts (public/sw.js is hand-written and committed)
 public/sw.js.map
-public/swe-worker-*.js
 public/workbox-*.js
 
 # testing

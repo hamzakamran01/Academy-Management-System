@@ -1,6 +1,7 @@
 import { and, count, eq, isNull } from "drizzle-orm";
 import { BottomNav, Sidebar } from "@/components/shell/nav";
 import { OfflineBanner } from "@/components/shell/offline-banner";
+import { AppProviders } from "@/components/shell/app-providers";
 import { db } from "@/server/db";
 import { notifications } from "@/server/db/schema";
 import { requireCtx } from "@/server/auth/session";
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
+    <AppProviders unread={unread?.n ?? 0}>
     <div className="min-h-dvh">
       <OfflineBanner />
       <Sidebar role={ctx.role} roles={ctx.roles} name={ctx.name} academyName={academy.name} unread={unread?.n ?? 0} />
@@ -25,5 +27,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <BottomNav role={ctx.role} />
     </div>
+    </AppProviders>
   );
 }

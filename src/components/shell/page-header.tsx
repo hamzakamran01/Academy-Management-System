@@ -1,7 +1,8 @@
-import { ArrowLeft, Bell } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { BellLink } from "./app-providers";
 
 /**
  * Sticky top app bar for every screen. On phones it carries the back button,
@@ -45,15 +46,7 @@ export function PageHeader({
           {subtitle && <p className="truncate text-[13px] text-muted lg:mt-0.5 lg:text-sm">{subtitle}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
-        {bell && (
-          <Link
-            href="/notifications"
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-2 lg:hidden"
-            aria-label="Notifications"
-          >
-            <Bell className="size-5" />
-          </Link>
-        )}
+        {bell && <BellLink />}
       </div>
     </header>
   );
