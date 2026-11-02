@@ -40,6 +40,9 @@
   --neutral-fg: oklch(0.42 0.02 266);
 
   --ring: oklch(0.6 0.2 268 / 0.45);
+  /* Chart series (validated: lightness band, chroma, contrast vs surface) */
+  --chart-1: #4f52d6;
+  --chart-grid: oklch(0.93 0.008 264);
   --shadow-color: 230 30% 30%;
   --nav-h: 64px;
 
@@ -80,6 +83,8 @@
     --neutral-fg: oklch(0.82 0.014 266);
 
     --ring: oklch(0.72 0.15 268 / 0.5);
+    --chart-1: #7a80ee;
+    --chart-grid: oklch(0.3 0.02 268);
     --shadow-color: 230 40% 2%;
     color-scheme: dark;
   }
@@ -117,6 +122,8 @@
   --color-neutral-soft: var(--neutral-soft);
   --color-neutral-fg: var(--neutral-fg);
   --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-grid: var(--chart-grid);
 
   --radius-sm: 8px;
   --radius-md: 10px;

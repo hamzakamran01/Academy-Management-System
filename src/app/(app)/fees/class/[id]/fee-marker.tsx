@@ -102,7 +102,7 @@ export function FeeMarker({
           </p>
         )}
         <div className="mt-3 flex gap-2">
-          <SearchInput className="flex-1" placeholder="Search name or roll no." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
+          <SearchInput className="flex-1" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
           <button
             type="button"
             aria-pressed={unpaidOnly}
@@ -126,10 +126,10 @@ export function FeeMarker({
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
           {shown.map((r) => (
             <li key={r.id} className="flex min-h-[68px] items-center gap-3 px-3 py-2.5 sm:px-4">
-              <span className="tabular w-8 shrink-0 text-center text-sm font-semibold text-muted">{r.rollNo ?? "–"}</span>
+              <span className="tabular w-6 shrink-0 text-center text-sm font-semibold text-muted">{r.rollNo ?? "–"}</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-medium">{r.name}</p>
-                <p className="truncate text-xs text-muted">
+                <p className="line-clamp-2 text-[15px] font-medium leading-5">{r.name}</p>
+                <p className="mt-0.5 truncate text-xs text-muted">
                   {showAmounts && r.amount !== undefined && <span className="tabular font-medium text-fg/80">{formatMoney(r.amount)} · </span>}
                   {r.status === "paid" && r.markedAt
                     ? `Paid ${formatRelative(r.markedAt)}${r.markedByName ? ` · ${r.markedByName}` : ""}`
@@ -151,7 +151,7 @@ export function FeeMarker({
                 />
               )}
               {isOwner && (
-                <Button variant="ghost" size="icon-sm" aria-label={`More for ${r.name}`} onClick={() => setWaiving(r)}>
+                <Button variant="ghost" size="icon-sm" className="-ms-1 -me-2 w-8" aria-label={`More for ${r.name}`} onClick={() => setWaiving(r)}>
                   <MoreHorizontal />
                 </Button>
               )}
@@ -185,35 +185,26 @@ function Counter({ label, value, tone }: { label: string; value: number; tone: "
   );
 }
 
-/** Two-state segmented toggle — text + icon + colour (UX-04), 44px+ target. */
+/**
+ * One large state toggle (PRD §5.1) — text + icon + colour (UX-04).
+ * Paid: solid green. Unpaid: amber outline. Tap flips it; Undo is offered.
+ */
 function PaidToggle({ paid, disabled, onChange, name }: { paid: boolean; disabled: boolean; onChange: (paid: boolean) => void; name: string }) {
   return (
-    <div role="group" aria-label={`Fee status for ${name}`} className="inline-flex h-11 shrink-0 rounded-lg border border-border bg-surface-2 p-0.5">
-      <button
-        type="button"
-        aria-pressed={!paid}
-        disabled={disabled}
-        onClick={() => paid && onChange(false)}
-        className={cn(
-          "inline-flex items-center gap-1 rounded-md px-2.5 text-[13px] font-semibold transition-all disabled:cursor-not-allowed",
-          !paid ? "bg-surface text-warning-fg shadow-xs" : "text-subtle",
-        )}
-      >
-        <Hourglass className="size-3.5" aria-hidden /> <span className="hidden min-[380px]:inline">Unpaid</span>
-      </button>
-      <button
-        type="button"
-        aria-pressed={paid}
-        disabled={disabled}
-        onClick={() => !paid && onChange(true)}
-        className={cn(
-          "inline-flex items-center gap-1 rounded-md px-3 text-[13px] font-semibold transition-all disabled:cursor-not-allowed",
-          paid ? "bg-success text-white shadow-xs" : "text-subtle",
-        )}
-      >
-        <Check className="size-4" aria-hidden /> Paid
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-pressed={paid}
+      aria-label={`${name}: ${paid ? "Paid — tap to mark unpaid" : "Unpaid — tap to mark paid"}`}
+      disabled={disabled}
+      onClick={() => onChange(!paid)}
+      className={cn(
+        "inline-flex h-11 w-[104px] shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60",
+        paid ? "bg-success text-white shadow-xs" : "border-2 border-warning/70 bg-warning-soft text-warning-fg",
+      )}
+    >
+      {paid ? <Check className="size-[18px]" strokeWidth={2.6} aria-hidden /> : <Hourglass className="size-4" aria-hidden />}
+      {paid ? "Paid" : "Unpaid"}
+    </button>
   );
 }
 
