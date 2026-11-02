@@ -22,6 +22,13 @@
       "when": 1793621469305,
       "tag": "0002_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793626914731,
+      "tag": "0003_syllabus_archive",
+      "breakpoints": true
     }
   ]
 }
