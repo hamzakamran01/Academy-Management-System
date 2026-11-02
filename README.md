@@ -57,16 +57,16 @@ Phases are ordered by dependency and business priority. Every phase ends with a 
 
 | # | Phase | Scope | PRD refs | Status |
 |---|---|---|---|---|
-| 0 | **Foundation** | Repo, tooling, design system, app shell, PWA manifest | UX-01…12 | 🔄 |
+| 0 | **Foundation** | Repo, tooling, design system, app shell, PWA manifest | UX-01…12 | ✅ |
 | 1 | **Data model** | Full schema (all modules), SQL migrations, seed | SRS §4 | ✅ |
 | 2 | **Accounts & roles** | Phone login, setup links + WhatsApp share, sessions, role switch, lockout, policy layer | AUTH-01…10 | ✅ |
 | 3 | **Academy setup** | Years, working days, holidays, classes, subjects, teacher assignment, archive rules | ORG-01…09 | ✅ |
-| 4 | **Students** | Add (with parent linking), edit, move, remove, re-admit, profile, search | STU-01…10 | 🔄 |
+| 4 | **Students** | Add (with parent linking), edit, move, remove, re-admit, profile, search | STU-01…10 | ✅ |
 | 5 | ~~Attendance~~ | **Deferred by owner (2 Nov 2026)** — tables kept, no screens or APIs in R1 | ATT-01…09 | ⏸ |
-| 6 | **Fees** | Class/personal fees, monthly rows, mark paid with undo, overviews, Finance | FEE-01…14 | ⏳ |
-| 7 | **Results** | Tests, marks in front of names, publish/lock/unlock/correct, stats, trends | RES-01…11 | ⏳ |
-| 8 | **Teaching progress** | Syllabus builder, weekly plan, lesson log, homework, coverage/expected/status | TPR-01…13 | ⏳ |
-| 9 | **Salaries** | Salary settings, monthly rows, mark paid, My Salary, net | SAL-01…06 | ⏳ |
+| 6 | **Fees** | Class/personal fees, monthly rows, mark paid with undo, overviews, Finance | FEE-01…14 | ✅ |
+| 7 | **Results** | Tests, marks in front of names, publish/lock/unlock/correct, stats, trends | RES-01…11 | ✅ |
+| 8 | **Teaching progress** | Syllabus builder, weekly plan, lesson log, homework, coverage/expected/status | TPR-01…13 | ✅ |
+| 9 | **Salaries** | Salary settings, monthly rows, mark paid, My Salary, net | SAL-01…06 | 🔄 |
 | 10 | **Notifications** | Announcements, notification centre, web push, reminders | NOT-01…05 | ⏳ |
 | 11 | **Dashboards & reports** | Role homes, people status, exports, activity log, settings | DSH, ADM | ⏳ |
 | 12 | **Hardening** | Offline queue, permission test suite, accessibility & performance pass | SRS §7, §11 | ⏳ |
