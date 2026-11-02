@@ -1,8 +1,8 @@
-import { BookOpenCheck, CalendarCheck2, ShieldCheck, Wallet } from "lucide-react";
+import { BookOpenCheck, GraduationCap, ShieldCheck, Wallet } from "lucide-react";
 import { Logo, LogoMark } from "@/components/brand";
 
 const POINTS = [
-  { icon: CalendarCheck2, title: "Attendance in 30 seconds", text: "Tap names, save — parents know instantly." },
+  { icon: GraduationCap, title: "Results in front of names", text: "Teachers type marks on their phone — parents see them instantly." },
   { icon: BookOpenCheck, title: "Teaching you can see", text: "Syllabus coverage, lesson logs and homework for every class." },
   { icon: Wallet, title: "Fees without paperwork", text: "Paid / Unpaid per student, with a clear money picture for the owner." },
   { icon: ShieldCheck, title: "Private by design", text: "Everyone sees only what their role allows." },

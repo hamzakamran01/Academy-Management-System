@@ -1,7 +1,7 @@
 # Campusly
 
 **The academy, on every phone.** Campusly is a mobile-first, installable web app (PWA) that gives an academy's
-owner, office admins, teachers and parents one truthful, connected record of students, attendance, results,
+owner, office admins, teachers and parents one truthful, connected record of students, results,
 teaching progress, fees and salaries.
 
 - Product vision → [`docs/vision.md`](docs/vision.md)
@@ -38,7 +38,7 @@ src/
     db/                 Drizzle schema + client
     auth/               sessions, passwords, current-user context
     policy/             permission checks and role scoping (SRS §5) — every request goes through here
-    modules/<module>/   business services: org, students, attendance, results, progress, fees, salaries, notify, audit
+    modules/<module>/   business services: org, students, results, progress, fees, salaries, notify, audit
 database/
   migrations/           numbered .sql files (run in order)
   seed/                 initial academy + Super Admin
@@ -58,11 +58,11 @@ Phases are ordered by dependency and business priority. Every phase ends with a 
 | # | Phase | Scope | PRD refs | Status |
 |---|---|---|---|---|
 | 0 | **Foundation** | Repo, tooling, design system, app shell, PWA manifest | UX-01…12 | 🔄 |
-| 1 | **Data model** | Full schema (all modules), SQL migrations, seed | SRS §4 | ⏳ |
-| 2 | **Accounts & roles** | Phone login, setup links + WhatsApp share, sessions, role switch, lockout, policy layer | AUTH-01…10 | ⏳ |
-| 3 | **Academy setup** | Years, working days, holidays, classes, subjects, teacher assignment, archive rules | ORG-01…09 | ⏳ |
-| 4 | **Students** | Add (with parent linking), edit, move, remove, re-admit, profile, search | STU-01…10 | ⏳ |
-| 5 | **Attendance** | Quick attendance, edit rules, parent calendar, admin today view | ATT-01…07 | ⏳ |
+| 1 | **Data model** | Full schema (all modules), SQL migrations, seed | SRS §4 | ✅ |
+| 2 | **Accounts & roles** | Phone login, setup links + WhatsApp share, sessions, role switch, lockout, policy layer | AUTH-01…10 | ✅ |
+| 3 | **Academy setup** | Years, working days, holidays, classes, subjects, teacher assignment, archive rules | ORG-01…09 | ✅ |
+| 4 | **Students** | Add (with parent linking), edit, move, remove, re-admit, profile, search | STU-01…10 | 🔄 |
+| 5 | ~~Attendance~~ | **Deferred by owner (2 Nov 2026)** — tables kept, no screens or APIs in R1 | ATT-01…09 | ⏸ |
 | 6 | **Fees** | Class/personal fees, monthly rows, mark paid with undo, overviews, Finance | FEE-01…14 | ⏳ |
 | 7 | **Results** | Tests, marks in front of names, publish/lock/unlock/correct, stats, trends | RES-01…11 | ⏳ |
 | 8 | **Teaching progress** | Syllabus builder, weekly plan, lesson log, homework, coverage/expected/status | TPR-01…13 | ⏳ |

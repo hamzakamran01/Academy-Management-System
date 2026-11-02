@@ -3,7 +3,6 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  CalendarCheck2,
   CalendarDays,
   ClipboardList,
   FileBarChart,
@@ -44,7 +43,7 @@ export const BOTTOM_NAV: Record<Role, NavItem[]> = {
   ],
   teacher: [
     { href: "/home", label: "Today", icon: Sun },
-    { href: "/classes", label: "My Classes", icon: Library, match: ["/attendance", "/lesson", "/plans", "/syllabus"] },
+    { href: "/classes", label: "My Classes", icon: Library, match: ["/lesson", "/plans", "/syllabus"] },
     { href: "/results", label: "Results", icon: GraduationCap },
     { href: "/fees", label: "Fees", icon: Wallet },
     more,
@@ -74,7 +73,6 @@ const people = (role: Role): NavItem[] => [
 
 const academics: NavItem[] = [
   { href: "/classes", label: "Classes", icon: Library },
-  { href: "/attendance", label: "Attendance", icon: CalendarCheck2 },
   { href: "/results", label: "Results", icon: GraduationCap },
   { href: "/progress", label: "Teaching progress", icon: TrendingUp, match: ["/syllabus", "/plans"] },
 ];
@@ -115,7 +113,6 @@ export const MENU: Record<Role, NavGroup[]> = {
     { label: "Teaching", items: [
       { href: "/home", label: "Today", icon: Sun },
       { href: "/classes", label: "My classes", icon: Library },
-      { href: "/attendance", label: "Attendance", icon: CalendarCheck2 },
       { href: "/plans", label: "Weekly plans", icon: ClipboardList },
       { href: "/results", label: "Results", icon: GraduationCap },
       { href: "/fees", label: "Fees", icon: Wallet },
@@ -133,7 +130,6 @@ export const MENU: Record<Role, NavGroup[]> = {
   parent: [
     { label: "My child", items: [
       { href: "/home", label: "Home", icon: Home },
-      { href: "/attendance", label: "Attendance", icon: CalendarCheck2 },
       { href: "/results", label: "Results", icon: GraduationCap },
       { href: "/progress", label: "Progress", icon: BookOpen },
       { href: "/homework", label: "Homework", icon: NotebookPen },

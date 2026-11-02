@@ -1,4 +1,4 @@
-import { BookOpen, CalendarCheck2, ClipboardList, Crown, GraduationCap, Users, Wallet } from "lucide-react";
+import { BookOpen, ClipboardList, Crown, GraduationCap, Users, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -34,7 +34,6 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
   const isClassTeacher = cls.classTeacherId === ctx.userId;
 
   const quick = [
-    { href: `/attendance/${id}`, label: "Attendance", icon: CalendarCheck2, show: admin || isClassTeacher },
     { href: `/students?classId=${id}`, label: "Students", icon: Users, show: true },
     { href: `/results?classId=${id}`, label: "Results", icon: GraduationCap, show: true },
     { href: `/fees/class/${id}`, label: "Fees", icon: Wallet, show: true },
