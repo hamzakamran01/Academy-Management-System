@@ -519,6 +519,30 @@ export async function studentActivity(ctx: Ctx, id: string) {
     .limit(50);
 }
 
+/** Options for the add/edit form: classes with their subjects and next roll no. */
+export async function studentFormOptions(ctx: Ctx) {
+  assertAdmin(ctx);
+  const year = await requireCurrentYear(ctx.academyId);
+  const cls = await db
+    .select({
+      id: classes.id,
+      name: classes.name,
+      nextRoll: sql<number>`coalesce((select max(case when e.roll_no ~ '^[0-9]+$' then e.roll_no::int end) from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null), 0) + 1`,
+    })
+    .from(classes)
+    .where(and(eq(classes.academicYearId, year.id), isNull(classes.archivedAt)))
+    .orderBy(asc(classes.level), asc(classes.name));
+  const subs = cls.length
+    ? await db
+        .select({ id: classSubjects.id, classId: classSubjects.classId, name: subjects.name })
+        .from(classSubjects)
+        .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId))
+        .where(and(inArray(classSubjects.classId, cls.map((c) => c.id)), isNull(classSubjects.archivedAt)))
+        .orderBy(asc(subjects.name))
+    : [];
+  return cls.map((c) => ({ ...c, nextRoll: String(c.nextRoll), subjects: subs.filter((s) => s.classId === c.id).map(({ id, name }) => ({ id, name })) }));
+}
+
 /** Children of the signed-in parent, for the switcher. */
 export async function myChildren(ctx: Ctx) {
   if (ctx.role !== "parent") throw forbidden();
