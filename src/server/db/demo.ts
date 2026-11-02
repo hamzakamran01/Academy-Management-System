@@ -7,9 +7,9 @@
  *   Owner    0300 0000001     Admin   0300 0000002
  *   Teacher  0300 0000003     Parent  0300 0000004
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
-import { addMonths, monthStart } from "@/lib/dates";
+import { addDays, addMonths, monthStart } from "@/lib/dates";
 import { toPktDate } from "@/lib/format";
 import { hashPassword } from "@/server/auth/crypto";
 import type { Database } from "./connect";
@@ -173,7 +173,137 @@ export async function seedDemo(db: Database): Promise<void> {
     const [sara] = await tx.select({ id: s.students.id }).from(s.students).where(eq(s.students.name, "Sara Raza"));
     if (sara) await tx.insert(s.studentFees).values({ studentId: sara.id, monthlyFee: 5000, note: "Sibling discount", setBy: owner.id });
 
-
-
+    await seedTeaching(tx as unknown as Database, { academyId, startYear, today, rand, ownerId: owner.id });
   });
+}
+
+const SYLLABI: Record<string, string[][]> = {
+  Physics: [
+    ["Physical quantities", "SI units", "Prefixes", "Scientific notation", "Measuring instruments"],
+    ["Kinematics", "Distance & displacement", "Speed & velocity", "Acceleration", "Graphs of motion"],
+    ["Dynamics", "Newton's first law", "Newton's second law", "Momentum", "Friction"],
+    ["Turning effect of forces", "Moment of a force", "Equilibrium", "Centre of mass"],
+    ["Gravitation", "Law of gravitation", "Mass of Earth", "Satellites"],
+    ["Work & energy", "Work", "Kinetic energy", "Potential energy", "Power"],
+  ],
+  Mathematics: [
+    ["Matrices", "Types of matrices", "Addition & subtraction", "Multiplication", "Inverse"],
+    ["Real numbers", "Properties", "Radicals", "Exponents"],
+    ["Logarithms", "Laws of logarithms", "Common logarithms", "Applications"],
+    ["Algebraic expressions", "Formulas", "Surds", "Rationalisation"],
+    ["Factorisation", "Factor theorem", "Cubic polynomials", "Remainder theorem"],
+    ["Linear equations", "Solving equations", "Inequalities", "Graphs"],
+  ],
+  English: [
+    ["The Saviour of Mankind", "Reading", "Vocabulary", "Comprehension"],
+    ["Patriotism", "Reading", "Grammar: tenses", "Writing: essay"],
+    ["Media and its impact", "Reading", "Grammar: voice", "Letter writing"],
+    ["Daffodils (poem)", "Reading", "Poetic devices", "Summary"],
+    ["Hazrat Asma", "Reading", "Grammar: narration", "Story writing"],
+  ],
+  Chemistry: [
+    ["Fundamentals of chemistry", "Branches", "Atomic mass", "Mole concept", "Chemical equations"],
+    ["Structure of atoms", "Atomic models", "Electronic configuration", "Isotopes"],
+    ["Periodic table", "Periods & groups", "Periodic properties", "Trends"],
+    ["Chemical bonding", "Ionic bond", "Covalent bond", "Metallic bond"],
+    ["Physical states of matter", "Gases", "Liquids", "Solids"],
+  ],
+  Biology: [
+    ["Introduction to biology", "Branches", "Levels of organisation"],
+    ["Solving a biological problem", "Scientific method", "Data analysis"],
+    ["Biodiversity", "Classification", "Five kingdoms", "Conservation"],
+    ["Cells and tissues", "Cell structure", "Organelles", "Tissues"],
+    ["Cell cycle", "Mitosis", "Meiosis", "Apoptosis"],
+  ],
+  Urdu: [["Nasr: Hamd", "Parhai", "Mushkil alfaaz"], ["Nazm: Iqbal", "Tashreeh", "Markazi khayal"], ["Qawaid", "Ism", "Fail"], ["Insha", "Khat", "Mazmoon"]],
+  "Computer Science": [["Problem solving", "Algorithms", "Flowcharts"], ["Binary systems", "Number systems", "Conversions"], ["Networks", "Topologies", "Protocols"], ["Data & privacy", "Ethics", "Security"]],
+};
+
+/** Syllabus, lesson logs, weekly plans, homework and a couple of published tests per class-subject. */
+async function seedTeaching(
+  tx: Database,
+  o: { academyId: string; startYear: number; today: string; rand: () => number; ownerId: string },
+) {
+  const { academyId, startYear, today, rand } = o;
+  const year = { startDate: `${startYear}-04-01`, endDate: `${startYear + 1}-03-31` };
+  const css = await tx
+    .select({ id: s.classSubjects.id, classId: s.classSubjects.classId, subjectName: s.subjects.name, teacherId: s.classSubjectTeachers.teacherId })
+    .from(s.classSubjects)
+    .innerJoin(s.subjects, eq(s.subjects.id, s.classSubjects.subjectId))
+    .innerJoin(s.classSubjectTeachers, eq(s.classSubjectTeachers.classSubjectId, s.classSubjects.id));
+  const hol = await tx.select().from(s.holidays);
+  const isWorking = (d: string) => {
+    const wd = new Date(`${d}T00:00:00Z`).getUTCDay();
+    return wd !== 0 && !hol.some((h) => h.startDate <= d && d <= h.endDate);
+  };
+  const workingDays: string[] = [];
+  for (let d = year.startDate; d <= today; d = addDays(d, 1)) if (isWorking(d)) workingDays.push(d);
+  const monday = addDays(today, 1 - (new Date(`${today}T00:00:00Z`).getUTCDay() || 7));
+  const paces = [1.04, 0.97, 0.9, 1.08, 0.99, 0.84, 1.02, 0.7, 1.0];
+
+  for (const [k, cs] of css.entries()) {
+    const chapterDefs = SYLLABI[cs.subjectName] ?? SYLLABI.Physics!;
+    const [book] = await tx.insert(s.books).values({ classSubjectId: cs.id, title: `${cs.subjectName} — Textbook`, order: 0 }).returning();
+    const allTopics: { id: string; size: number; chapterIdx: number }[] = [];
+    for (const [ci, def] of chapterDefs.entries()) {
+      // Spread chapter targets across the year (skipping the summer break)
+      const target = addDays(year.startDate, Math.round(((ci + 1) / chapterDefs.length) * 330));
+      const [ch] = await tx.insert(s.chapters).values({ bookId: book!.id, title: `Ch ${ci + 1} · ${def[0]}`, order: ci, targetDate: target }).returning();
+      const ts = await tx
+        .insert(s.topics)
+        .values(def.slice(1).map((title, ti) => ({ chapterId: ch!.id, title, order: ti, size: 1 + Math.floor(rand() * 3) })))
+        .returning();
+      ts.forEach((t) => allTopics.push({ id: t.id, size: t.size, chapterIdx: ci }));
+    }
+
+    // Expected share by today ≈ elapsed working days; each subject runs at its own pace.
+    const elapsed = Math.min(1, (Date.parse(today) - Date.parse(year.startDate)) / 86_400_000 / 330);
+    const pace = paces[k % paces.length]!;
+    const doneCount = Math.min(allTopics.length - 1, Math.max(1, Math.round(allTopics.length * elapsed * pace)));
+    const logDays = workingDays.slice(-Math.max(doneCount * 2, 10));
+    for (let i = 0; i < doneCount; i++) {
+      const date = logDays[Math.min(logDays.length - 1, Math.floor((i / doneCount) * logDays.length))]!;
+      const [log] = await tx
+        .insert(s.lessonLogs)
+        .values({ classSubjectId: cs.id, teacherId: cs.teacherId, date })
+        .onConflictDoNothing()
+        .returning();
+      const logId = log?.id ?? (await tx.select({ id: s.lessonLogs.id }).from(s.lessonLogs).where(and(eq(s.lessonLogs.classSubjectId, cs.id), eq(s.lessonLogs.date, date))))[0]!.id;
+      await tx.insert(s.lessonLogTopics).values({ lessonLogId: logId, topicId: allTopics[i]!.id, status: "completed" });
+      await tx.insert(s.topicProgress).values({ classSubjectId: cs.id, topicId: allTopics[i]!.id, status: "completed", completedOn: date });
+    }
+    // One topic in progress
+    const started = allTopics[doneCount];
+    if (started) await tx.insert(s.topicProgress).values({ classSubjectId: cs.id, topicId: started.id, status: "started" });
+
+    // This week's plan for most subjects
+    if (k % 4 !== 3) {
+      const [plan] = await tx
+        .insert(s.weeklyPlans)
+        .values({ classSubjectId: cs.id, teacherId: cs.teacherId, weekStart: monday, status: k % 5 === 4 ? "draft" : "submitted", submittedAt: k % 5 === 4 ? null : new Date(`${monday}T04:30:00Z`), note: "Revise previous chapter on Saturday." })
+        .returning();
+      const next = allTopics.slice(doneCount, doneCount + 3);
+      if (next.length) await tx.insert(s.weeklyPlanTopics).values(next.map((t) => ({ weeklyPlanId: plan!.id, topicId: t.id })));
+    }
+    // Homework due soon
+    if (k % 2 === 0) {
+      await tx.insert(s.homework).values({ classSubjectId: cs.id, title: `${cs.subjectName}: exercise questions 1–5`, details: "Write answers in your notebook.", dueDate: addDays(today, 1 + (k % 3)), createdBy: cs.teacherId });
+    }
+
+    // Two published weekly tests
+    const roster = await tx.select({ id: s.enrollments.studentId }).from(s.enrollments).where(eq(s.enrollments.classId, cs.classId));
+    for (const [ti, daysAgo] of [21, 7].entries()) {
+      const date = workingDays[Math.max(0, workingDays.length - 1 - daysAgo)]!;
+      const [a] = await tx
+        .insert(s.assessments)
+        .values({ academyId, classSubjectId: cs.id, type: "weekly", title: `Weekly test ${ti + 3}`, date, totalMarks: 25, status: "published", publishedAt: new Date(`${date}T10:00:00Z`), publishedBy: cs.teacherId, createdBy: cs.teacherId })
+        .returning();
+      await tx.insert(s.marks).values(
+        roster.map((r) => {
+          const absent = rand() < 0.05;
+          return { assessmentId: a!.id, studentId: r.id, isAbsent: absent, value: absent ? null : Math.round((10 + rand() * 15) * 2) / 2, updatedBy: cs.teacherId };
+        }),
+      );
+    }
+  }
 }
