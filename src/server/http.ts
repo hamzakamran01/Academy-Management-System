@@ -22,6 +22,14 @@ export const conflict = (code: string, message: string, details?: Record<string,
 export const badRequest = (code: string, message: string, details?: Record<string, unknown>) =>
   new ApiError(422, code, message, details);
 
+export function pgErrorCode(err: unknown): string | null {
+  for (let e = err, depth = 0; e && typeof e === "object" && depth < 4; e = (e as { cause?: unknown }).cause, depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) return code;
+  }
+  return null;
+}
+
 function errorResponse(err: unknown) {
   if (err instanceof ApiError) {
     return NextResponse.json({ error: { code: err.code, message: err.message, details: err.details } }, { status: err.status });
@@ -37,9 +45,13 @@ function errorResponse(err: unknown) {
       { status: 422 },
     );
   }
-  // Postgres unique violation → friendly 409
-  if (typeof err === "object" && err && "code" in err && (err as { code: string }).code === "23505") {
+  // Postgres errors arrive wrapped by Drizzle (err.cause) — map the common ones.
+  const pgCode = pgErrorCode(err);
+  if (pgCode === "23505") {
     return NextResponse.json({ error: { code: "DUPLICATE", message: "This already exists" } }, { status: 409 });
+  }
+  if (pgCode === "23503") {
+    return NextResponse.json({ error: { code: "IN_USE", message: "This is linked to other records" } }, { status: 409 });
   }
   console.error("[api] unhandled", err);
   return NextResponse.json({ error: { code: "INTERNAL", message: "Something went wrong. Please try again." } }, { status: 500 });

@@ -1,4 +1,6 @@
 import "server-only";
+// NOTE: correlated subqueries reference outer columns as quoted "table"."column".
+// Drizzle prints bare "id" for single-table selects, which would bind to the inner table.
 import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import {
@@ -32,7 +34,7 @@ export async function listSubjects(academyId: string, includeArchived = false) {
       name: subjects.name,
       code: subjects.code,
       archivedAt: subjects.archivedAt,
-      classCount: sql<number>`(select count(*)::int from ${classSubjects} cs join ${classes} c on c.id = cs.class_id where cs.subject_id = ${subjects.id} and cs.archived_at is null and c.archived_at is null)`,
+      classCount: sql<number>`(select count(*)::int from ${classSubjects} cs join ${classes} c on c.id = cs.class_id where cs.subject_id = "subjects"."id" and cs.archived_at is null and c.archived_at is null)`,
     })
     .from(subjects)
     .where(and(eq(subjects.academyId, academyId), includeArchived ? undefined : isNull(subjects.archivedAt)))
@@ -99,8 +101,8 @@ export async function listClasses(ctx: Ctx): Promise<ClassRow[]> {
       capacity: classes.capacity,
       classTeacherId: classes.classTeacherId,
       classTeacherName: users.name,
-      studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = ${classes.id} and e.to_date is null)`,
-      subjectCount: sql<number>`(select count(*)::int from ${classSubjects} cs where cs.class_id = ${classes.id} and cs.archived_at is null)`,
+      studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null)`,
+      subjectCount: sql<number>`(select count(*)::int from ${classSubjects} cs where cs.class_id = "classes"."id" and cs.archived_at is null)`,
     })
     .from(classes)
     .leftJoin(users, eq(users.id, classes.classTeacherId))
@@ -213,7 +215,7 @@ export async function getClassDetail(ctx: Ctx, id: string) {
       archivedAt: classes.archivedAt,
       academicYearId: classes.academicYearId,
       monthlyFee: classFees.monthlyFee,
-      studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = ${classes.id} and e.to_date is null)`,
+      studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null)`,
     })
     .from(classes)
     .leftJoin(users, eq(users.id, classes.classTeacherId))
@@ -230,8 +232,8 @@ export async function getClassDetail(ctx: Ctx, id: string) {
       teacherName: users.name,
       studentCount: sql<number>`(
         select count(*)::int from ${enrollments} e
-        where e.class_id = ${classSubjects.classId} and e.to_date is null
-          and not exists (select 1 from student_subject_exclusions x where x.enrollment_id = e.id and x.class_subject_id = ${classSubjects.id})
+        where e.class_id = "class_subjects"."class_id" and e.to_date is null
+          and not exists (select 1 from student_subject_exclusions x where x.enrollment_id = e.id and x.class_subject_id = "class_subjects"."id")
       )`,
     })
     .from(classSubjects)
