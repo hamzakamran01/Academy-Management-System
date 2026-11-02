@@ -31,7 +31,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {sp.denied === "1" && (
         <Notice tone="warning" className="mb-4">That page isn't available for your role.</Notice>
       )}
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(({ href, label, icon: Icon }) => (
           <li key={href}>
             <CardLink href={href}>

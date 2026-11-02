@@ -95,7 +95,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             </Notice>
           )}
 
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
             <Card>
               <CardHeader title="Last 12 months" description="Recovered against expected each month" action={<TrendingUp className="size-5 text-muted" aria-hidden />} />
               <CardBody>
@@ -132,7 +132,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             {f.unpaid.length === 0 ? (
               <EmptyState icon={Banknote} title="Everyone has paid" className="py-8" />
             ) : (
-              <ul className="grid divide-y divide-border border-t border-border md:grid-cols-2 md:divide-y-0">
+              <ul className="grid grid-cols-1 divide-y divide-border border-t border-border md:grid-cols-2 md:divide-y-0">
                 {f.unpaid.map((u) => (
                   <li key={u.rowId} className="md:border-b md:border-border md:odd:border-e">
                     <Link href={`/students/${u.studentId}?tab=fees`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">

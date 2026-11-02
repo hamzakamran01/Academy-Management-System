@@ -106,7 +106,7 @@ export default async function SubjectProgressPage({ params }: { params: Promise<
             </Notice>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
             <Card>
               <CardHeader title="Chapters" description={`${p.completedTopics}/${p.totalTopics} topics · ${p.completedSize}/${p.totalSize} periods`} />
               <div className="border-t border-border">

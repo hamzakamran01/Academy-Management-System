@@ -49,7 +49,7 @@ export default async function ClassesPage() {
           description={admin ? "Add your first class, attach subjects and assign teachers." : "Ask the office to assign you to a class subject."}
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((c) => (
             <li key={c.id}>
               <Link href={`/classes/${c.id}`} className="block h-full">

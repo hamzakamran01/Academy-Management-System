@@ -20,7 +20,7 @@ export default async function FeeSettingsPage() {
           {unset.map((c) => c.name).join(", ")} {unset.length === 1 ? "has" : "have"} no default fee — new fee rows there will be Rs 0.
         </Notice>
       )}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ClassFees classes={data.classes} />
         <PersonalFees
           personal={data.personal}

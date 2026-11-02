@@ -31,7 +31,7 @@ export default async function CalendarPage() {
   return (
     <>
       <PageHeader title={admin ? "Year & holidays" : "Holidays"} subtitle={`Academic year ${year.name}`} back="/more" />
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="space-y-4">
           <Card>
             <CardBody className="pt-4">

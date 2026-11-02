@@ -152,7 +152,7 @@ export function StudentForm({
               </div>
             )}
           </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Date of birth" optional error={err("dob")}>
               {(p) => <Input {...p} type="date" value={v.dob} max={today} onChange={(e) => set("dob", e.target.value)} />}
             </Field>
@@ -166,7 +166,7 @@ export function StudentForm({
       <Card>
         <CardHeader title="Class" description={mode === "edit" ? "To change class, use “Move class” on the profile." : undefined} />
         <CardBody className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_140px]">
             <Field label="Class" required error={err("classId")}>
               {(p) => (
                 <Select

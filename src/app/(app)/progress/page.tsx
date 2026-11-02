@@ -70,7 +70,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
       ) : (
         <>
           <SectionTitle>{admin ? "All class subjects" : "Your subjects"}</SectionTitle>
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {shown.map((r) => {
               const loggedToday = r.lastLog === today;
               return (

@@ -96,7 +96,7 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
       <LinkTabs tabs={tabs} active={tab} />
 
       {tab === "details" && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader title="Profile" />
             <CardBody>
@@ -242,7 +242,7 @@ function HistoryTab({
   activity: { id: string; summary: string | null; at: Date; actorName: string | null }[];
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader title="Classes" />
         <ol className="relative mx-4 mb-4 border-s border-border">
