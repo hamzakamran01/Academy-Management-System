@@ -39,15 +39,4 @@ export async function burnPasswordCheck(password: string): Promise<void> {
   await verifyPassword(await dummyHash, password);
 }
 
-const COMMON = new Set([
-  "12345678", "123456789", "1234567890", "password", "password1", "password123", "qwerty123", "11111111",
-  "00000000", "abcd1234", "pakistan", "pakistan123", "iloveyou", "admin123", "welcome1", "87654321",
-  "12341234", "asdf1234", "qwertyui", "1q2w3e4r", "pass1234", "letmein1", "11223344", "aa123456",
-]);
-
-export function passwordProblem(password: string): string | null {
-  if (password.length < 8) return "Use at least 8 characters";
-  if (password.length > 128) return "Use at most 128 characters";
-  if (COMMON.has(password.toLowerCase())) return "This password is too common — choose another";
-  return null;
-}
+export { passwordProblem } from "@/lib/password";

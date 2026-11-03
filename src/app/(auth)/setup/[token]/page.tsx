@@ -34,7 +34,7 @@ export default async function SetupPage({ params }: { params: Promise<{ token: s
         Create a password for <span className="font-semibold text-fg">{formatPhone(found.phone)}</span>. You'll use it with your
         mobile number to sign in.
       </p>
-      <SetupForm token={token} phone={found.phone} />
+      <SetupForm token={token} phone={found.phone} strong={found.strong} />
     </>
   );
 }

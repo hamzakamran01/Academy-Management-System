@@ -52,7 +52,7 @@ export default async function ProfilePage() {
         <span className="flex-1 font-medium">App & notifications</span>
         <ChevronRight className="size-5 text-subtle" aria-hidden />
       </Link>
-      <SecurityCard />
+      <SecurityCard strong={ctx.roles.includes("super_admin")} phone={ctx.phone} />
     </div>
   );
 }

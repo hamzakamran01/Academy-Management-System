@@ -1,15 +1,15 @@
 "use client";
 
-import { Check, Eye, EyeOff, TriangleAlert } from "lucide-react";
+import { Eye, EyeOff, TriangleAlert } from "lucide-react";
+import { PasswordChecklist, passwordOk } from "@/components/password-rules";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { api, errorMessage } from "@/lib/api";
-import { cn } from "@/lib/cn";
 
-export function SetupForm({ token, phone }: { token: string; phone: string }) {
+export function SetupForm({ token, phone, strong = false }: { token: string; phone: string; strong?: boolean }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,12 +17,12 @@ export function SetupForm({ token, phone }: { token: string; phone: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const longEnough = password.length >= 8;
+  const rulesOk = passwordOk(password, strong, phone);
   const matches = password.length > 0 && password === confirm;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!longEnough) return setError("Use at least 8 characters");
+    if (!rulesOk) return setError(strong ? "Your password doesn't meet all the rules yet" : "Use at least 8 characters");
     if (!matches) return setError("Passwords don't match");
     setBusy(true);
     setError(null);
@@ -73,24 +73,10 @@ export function SetupForm({ token, phone }: { token: string; phone: string }) {
           <Input {...p} type={show ? "text" : "password"} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         )}
       </Field>
-      <ul className="space-y-1.5 text-sm" aria-live="polite">
-        <Rule ok={longEnough}>At least 8 characters</Rule>
-        <Rule ok={matches}>Both passwords match</Rule>
-      </ul>
-      <Button type="submit" size="lg" block loading={busy} disabled={!longEnough || !matches}>
+      <PasswordChecklist password={password} strong={strong} phone={phone} extra={[{ label: "Both passwords match", ok: matches }]} />
+      <Button type="submit" size="lg" block loading={busy} disabled={!rulesOk || !matches}>
         Save password & continue
       </Button>
     </form>
-  );
-}
-
-function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
-  return (
-    <li className={cn("flex items-center gap-2", ok ? "text-success-fg" : "text-muted")}>
-      <span className={cn("flex size-5 items-center justify-center rounded-full", ok ? "bg-success-soft" : "bg-surface-3")}>
-        <Check className={cn("size-3.5", !ok && "opacity-0")} aria-hidden />
-      </span>
-      {children}
-    </li>
   );
 }

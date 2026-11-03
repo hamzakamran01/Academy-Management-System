@@ -78,14 +78,23 @@ export async function findSetupToken(raw: string) {
     .innerJoin(users, eq(users.id, setupTokens.userId))
     .where(eq(setupTokens.tokenHash, hashToken(raw)));
   if (!row || row.usedAt || row.expiresAt < new Date()) return null;
-  return { id: row.id, userId: row.userId, name: row.name, phone: row.phone, isReset: !!row.hasPassword };
+  return { id: row.id, userId: row.userId, name: row.name, phone: row.phone, isReset: !!row.hasPassword, strong: await isOwner(row.userId) };
+}
+
+/** Owners see all money and salaries, so their passwords must be a little stronger. */
+export async function isOwner(userId: string): Promise<boolean> {
+  const [r] = await db
+    .select({ id: roleAssignments.id })
+    .from(roleAssignments)
+    .where(and(eq(roleAssignments.userId, userId), eq(roleAssignments.role, "super_admin"), eq(roleAssignments.active, true)));
+  return !!r;
 }
 
 export async function completeSetup(raw: string, password: string): Promise<{ role: Role }> {
-  const problem = passwordProblem(password);
-  if (problem) throw badRequest("WEAK_PASSWORD", problem);
   const token = await findSetupToken(raw);
   if (!token) throw new ApiError(410, "LINK_EXPIRED", "This link has expired or was already used. Ask the academy office for a new one.");
+  const problem = passwordProblem(password, { strong: token.strong, phone: token.phone });
+  if (problem) throw badRequest("WEAK_PASSWORD", problem);
 
   const passwordHash = await hashPassword(password);
   await db.transaction(async (tx) => {
@@ -123,9 +132,9 @@ export function setupUrl(raw: string): string {
 }
 
 export async function changePassword(userId: string, current: string, next: string) {
-  const problem = passwordProblem(next);
-  if (problem) throw badRequest("WEAK_PASSWORD", problem);
-  const [u] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, userId));
+  const [u] = await db.select({ hash: users.passwordHash, phone: users.phone }).from(users).where(eq(users.id, userId));
+  const problem = passwordProblem(next, { strong: await isOwner(userId), phone: u?.phone });
+  if (problem) throw badRequest("WEAK_PASSWORD", problem, { fields: { next: problem } });
   if (!u?.hash || !(await verifyPassword(u.hash, current))) throw badRequest("BAD_PASSWORD", "Current password is incorrect");
   await db.update(users).set({ passwordHash: await hashPassword(next) }).where(eq(users.id, userId));
 }
