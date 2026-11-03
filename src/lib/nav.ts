@@ -40,8 +40,8 @@ export const BOTTOM_NAV: Record<Role, NavItem[]> = {
     more,
   ],
   teacher: [
-    { href: "/home", label: "Today", icon: Sun },
-    { href: "/classes", label: "My Classes", icon: Library, match: ["/lesson", "/my-progress"] },
+    { href: "/home", label: "Today", icon: Sun, match: ["/lesson", "/my-progress"] },
+    { href: "/classes", label: "My Classes", icon: Library },
     { href: "/results", label: "Results", icon: GraduationCap },
     { href: "/my-salary", label: "Salary", icon: Banknote },
     more,

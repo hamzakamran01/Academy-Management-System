@@ -45,7 +45,7 @@ export default async function MorePage() {
                     <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-fg">
                       <Icon className="size-5" aria-hidden />
                     </span>
-                    <span className="w-full hyphens-auto text-[12.5px] font-medium leading-tight [overflow-wrap:anywhere]">{label}</span>
+                    <span className="w-full text-[12px] font-medium leading-tight tracking-tight [overflow-wrap:break-word]">{label}</span>
                   </Link>
                 </li>
               ))}

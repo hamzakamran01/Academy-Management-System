@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "My logs" };
 /** Teacher: my streak, how consistently I've logged, and everything I wrote recently. */
 export default async function MyLogsPage() {
   const ctx = await requireCtx(["teacher"]);
-  const [today, [mine], logs] = await Promise.all([teacherToday(ctx), teacherConsistency(ctx, { count: 10, teacherId: ctx.userId }), myRecentLogs(ctx, 21)]);
+  const [today, [mine], logs] = await Promise.all([teacherToday(ctx), teacherConsistency(ctx, { count: 10, teacherId: ctx.userId }), myRecentLogs(ctx, 14)]);
   const t = todayPkt();
 
   // Group by day, newest first.
@@ -67,7 +67,7 @@ export default async function MyLogsPage() {
               </ul>
             </section>
           ))}
-          <p className="text-center text-xs text-muted">Showing the last 3 weeks · since {formatDate(logs[logs.length - 1]!.date)}</p>
+          <p className="text-center text-xs text-muted">Showing the last 2 weeks · since {formatDate(logs[logs.length - 1]!.date)}</p>
         </div>
       )}
     </>

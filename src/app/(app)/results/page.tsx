@@ -84,18 +84,16 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
                   <span className="text-lg font-bold leading-tight">{a.date.slice(8)}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-medium">{a.title}</span>
-                    <Badge tone={a.type === "monthly" ? "info" : "neutral"} className="shrink-0">{a.type === "monthly" ? "Monthly" : a.type === "weekly" ? "Weekly" : TYPE_LABEL[a.type]}</Badge>
-                  </p>
+                  <p className="truncate font-medium">{a.title}</p>
                   <p className="truncate text-[13px] text-muted">
                     {a.subjectName} · {a.className} · out of {fmtMark(a.totalMarks)}
                   </p>
-                  {a.correctionRequestedAt && a.status === "published" && <Badge tone="info" className="mt-1">Correction requested</Badge>}
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  {a.status !== "published" && <StatusBadge status={a.status} />}
-                  {a.status !== "published" && <span className="tabular text-xs text-muted">{a.entered} entered</span>}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Badge tone={a.type === "monthly" ? "info" : "neutral"}>{a.type === "monthly" ? "Monthly" : a.type === "weekly" ? "Weekly" : TYPE_LABEL[a.type]}</Badge>
+                    {a.status !== "published" && <StatusBadge status={a.status} />}
+                    {a.status !== "published" && <span className="tabular text-xs text-muted">{a.entered} marks entered</span>}
+                    {a.correctionRequestedAt && a.status === "published" && <Badge tone="info">Correction requested</Badge>}
+                  </div>
                 </div>
                 <ChevronRight className="size-5 shrink-0 text-subtle" aria-hidden />
               </Link>

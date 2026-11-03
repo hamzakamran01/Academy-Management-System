@@ -55,7 +55,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             )
           }
         />
-        <StudentSearch placeholder="Search any student by name, roll no. or phone" />
+        <StudentSearch placeholder="Search any student" />
         {classes.length === 0 ? (
           <EmptyState
             icon={Library}
@@ -88,7 +88,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           </ul>
         )}
         {admin && (
-          <div className="mt-5 flex justify-center">
+          <div className="mb-24 mt-5 flex justify-center lg:mb-0">
             <ButtonLink href="/students?status=removed" variant="ghost" size="sm" className="text-muted">
               <UserMinus aria-hidden /> Removed students
             </ButtonLink>
