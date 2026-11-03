@@ -115,13 +115,15 @@ export async function parentDashboard(ctx: Ctx, studentId?: string) {
 
 /** SRS §12.4 "System health" card. */
 export async function systemHealth() {
-  const [lastMonthly] = await db.select().from(jobRuns).where(eq(jobRuns.job, "monthly-rows")).orderBy(desc(jobRuns.startedAt)).limit(1);
-  const [lastTick] = await db.select({ at: jobRuns.startedAt }).from(jobRuns).orderBy(desc(jobRuns.startedAt)).limit(1);
-  const [failedJobs] = await db.select({ n: count() }).from(jobRuns).where(and(eq(jobRuns.ok, false), gte(jobRuns.startedAt, new Date(Date.now() - 7 * 86_400_000))));
-  const [pushFailed] = await db
-    .select({ n: count() })
-    .from(notifications)
-    .where(and(isNull(notifications.pushSentAt), isNull(notifications.pushCancelledAt), gte(notifications.pushAttempts, 3), gte(notifications.createdAt, new Date(Date.now() - 86_400_000))));
+  const [[lastMonthly], [lastTick], [failedJobs], [pushFailed]] = await Promise.all([
+    db.select().from(jobRuns).where(eq(jobRuns.job, "monthly-rows")).orderBy(desc(jobRuns.startedAt)).limit(1),
+    db.select({ at: jobRuns.startedAt }).from(jobRuns).orderBy(desc(jobRuns.startedAt)).limit(1),
+    db.select({ n: count() }).from(jobRuns).where(and(eq(jobRuns.ok, false), gte(jobRuns.startedAt, new Date(Date.now() - 7 * 86_400_000)))),
+    db
+      .select({ n: count() })
+      .from(notifications)
+      .where(and(isNull(notifications.pushSentAt), isNull(notifications.pushCancelledAt), gte(notifications.pushAttempts, 3), gte(notifications.createdAt, new Date(Date.now() - 86_400_000)))),
+  ]);
   return {
     lastMonthlyRun: lastMonthly ? { month: lastMonthly.runKey, ok: lastMonthly.ok, at: lastMonthly.finishedAt } : null,
     lastJobAt: lastTick?.at ?? null,

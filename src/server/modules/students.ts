@@ -449,20 +449,21 @@ export async function getStudentProfile(ctx: Ctx, id: string) {
   const [s] = await db.select().from(students).where(and(eq(students.id, id), eq(students.academyId, ctx.academyId)));
   if (!s) throw notFound("Student");
 
-  const history = await db
-    .select({ id: enrollments.id, classId: classes.id, className: classes.name, rollNo: enrollments.rollNo, fromDate: enrollments.fromDate, toDate: enrollments.toDate })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(eq(enrollments.studentId, id))
-    .orderBy(desc(enrollments.fromDate));
+  const [history, parents] = await Promise.all([
+    db
+      .select({ id: enrollments.id, classId: classes.id, className: classes.name, rollNo: enrollments.rollNo, fromDate: enrollments.fromDate, toDate: enrollments.toDate })
+      .from(enrollments)
+      .innerJoin(classes, eq(classes.id, enrollments.classId))
+      .where(eq(enrollments.studentId, id))
+      .orderBy(desc(enrollments.fromDate)),
+    db
+      .select({ id: users.id, name: users.name, phone: users.phone, relation: parentLinks.relation, invited: sql<boolean>`${users.passwordHash} is null`, lastActiveAt: users.lastActiveAt })
+      .from(parentLinks)
+      .innerJoin(users, eq(users.id, parentLinks.parentUserId))
+      .where(eq(parentLinks.studentId, id))
+      .orderBy(asc(parentLinks.createdAt)),
+  ]);
   const current = history.find((h) => h.toDate === null) ?? null;
-
-  const parents = await db
-    .select({ id: users.id, name: users.name, phone: users.phone, relation: parentLinks.relation, invited: sql<boolean>`${users.passwordHash} is null`, lastActiveAt: users.lastActiveAt })
-    .from(parentLinks)
-    .innerJoin(users, eq(users.id, parentLinks.parentUserId))
-    .where(eq(parentLinks.studentId, id))
-    .orderBy(asc(parentLinks.createdAt));
 
   const subjectRows = current
     ? await db

@@ -155,20 +155,22 @@ export async function salariesOverview(ctx: Ctx, month: string) {
 /** BR-SAL-06: net = recovered − salaries paid; planned net = expected − all salary rows. */
 export async function netForMonth(ctx: Ctx, month: string) {
   assertOwner(ctx);
-  const [f] = await db
-    .select({
-      expected: sql<number>`coalesce(sum(${feeRows.amount}) filter (where ${feeRows.status} <> 'waived'), 0)::int`,
-      recovered: sql<number>`coalesce(sum(${feeRows.amount}) filter (where ${feeRows.status} = 'paid'), 0)::int`,
-    })
-    .from(feeRows)
-    .where(and(eq(feeRows.academyId, ctx.academyId), eq(feeRows.month, month)));
-  const [s] = await db
-    .select({
-      total: sql<number>`coalesce(sum(${salaryRows.amount}), 0)::int`,
-      paid: sql<number>`coalesce(sum(${salaryRows.amount}) filter (where ${salaryRows.status} = 'paid'), 0)::int`,
-    })
-    .from(salaryRows)
-    .where(and(eq(salaryRows.academyId, ctx.academyId), eq(salaryRows.month, month)));
+  const [[f], [s]] = await Promise.all([
+    db
+      .select({
+        expected: sql<number>`coalesce(sum(${feeRows.amount}) filter (where ${feeRows.status} <> 'waived'), 0)::int`,
+        recovered: sql<number>`coalesce(sum(${feeRows.amount}) filter (where ${feeRows.status} = 'paid'), 0)::int`,
+      })
+      .from(feeRows)
+      .where(and(eq(feeRows.academyId, ctx.academyId), eq(feeRows.month, month))),
+    db
+      .select({
+        total: sql<number>`coalesce(sum(${salaryRows.amount}), 0)::int`,
+        paid: sql<number>`coalesce(sum(${salaryRows.amount}) filter (where ${salaryRows.status} = 'paid'), 0)::int`,
+      })
+      .from(salaryRows)
+      .where(and(eq(salaryRows.academyId, ctx.academyId), eq(salaryRows.month, month))),
+  ]);
   return {
     salaryBill: s?.total ?? 0,
     salaryPaid: s?.paid ?? 0,
