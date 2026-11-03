@@ -35,8 +35,8 @@ describe("fees", () => {
     admin = await makeUser(academyId, "admin", "Admin");
     teacher = await makeUser(academyId, "teacher", "Class Teacher");
     outsider = await makeUser(academyId, "teacher", "Other Teacher");
-    classId = (await makeClass(academyId, yearId, "9-A", { fee: 6000, classTeacherId: teacher.userId, setBy: owner.userId })).id;
-    otherClassId = (await makeClass(academyId, yearId, "9-B", { fee: 6000, classTeacherId: outsider.userId, setBy: owner.userId })).id;
+    classId = (await makeClass(academyId, yearId, "9-A", { fee: 6000, setBy: owner.userId })).id;
+    otherClassId = (await makeClass(academyId, yearId, "9-B", { fee: 6000, setBy: owner.userId })).id;
 
     for (let i = 1; i <= 40; i++) ids.push((await makeStudent(academyId, classId, i, i === 1 ? "Ali" : `S${i}`)).id);
     aliId = ids[0]!;

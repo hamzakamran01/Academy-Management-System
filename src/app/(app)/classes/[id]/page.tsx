@@ -1,4 +1,4 @@
-import { BookOpen, ClipboardList, Crown, GraduationCap, Users, Wallet } from "lucide-react";
+import { BookOpen, ClipboardList, GraduationCap, Users, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -31,7 +31,6 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
   const taken = new Set(cls.subjects.map((s) => s.subjectId));
   const available = allSubjects.filter((s) => !taken.has(s.id)).map((s) => ({ id: s.id, name: s.name }));
   const studentCount = cls.studentCount;
-  const isClassTeacher = cls.classTeacherId === ctx.userId;
 
   const quick = [
     { href: `/students?classId=${id}`, label: "Students", icon: Users, show: true },
@@ -44,24 +43,19 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
     <>
       <PageHeader
         title={cls.name}
-        subtitle={[cls.shift, cls.classTeacherName && `Class teacher: ${cls.classTeacherName}`].filter(Boolean).join(" · ") || undefined}
+        subtitle={cls.shift ? `${cls.shift} shift` : undefined}
         back="/classes"
         actions={
           admin && (
             <EditClassButton
-              teachers={teachers}
-              values={{ id: cls.id, name: cls.name, level: cls.level, shift: cls.shift, capacity: cls.capacity, classTeacherId: cls.classTeacherId }}
+              values={{ id: cls.id, name: cls.name, shift: cls.shift }}
             />
           )
         }
       />
 
-      {isClassTeacher && (
-        <Badge tone="primary" size="md" icon={Crown} className="mb-4">You are the class teacher</Badge>
-      )}
-
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Students" value={studentCount} sub={cls.capacity ? `of ${cls.capacity} seats` : undefined} icon={Users} />
+        <StatTile label="Students" value={studentCount} icon={Users} />
         <StatTile label="Subjects" value={cls.subjects.length} icon={BookOpen} tone="info" />
         {cls.monthlyFee !== undefined && (
           <StatTile label="Monthly fee" value={cls.monthlyFee != null ? formatMoney(cls.monthlyFee) : "Not set"} icon={Wallet} tone="success" href={ctx.role === "super_admin" ? "/fees/settings" : undefined} className="col-span-2 lg:col-span-1" />

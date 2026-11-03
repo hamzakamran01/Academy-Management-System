@@ -75,14 +75,16 @@ export async function updateSubject(ctx: Ctx, id: string, input: { name?: string
 export type ClassRow = {
   id: string;
   name: string;
-  level: number;
   shift: string | null;
-  capacity: number | null;
-  classTeacherId: string | null;
-  classTeacherName: string | null;
   studentCount: number;
   subjectCount: number;
 };
+
+/** Sort order is derived from the name ("Grade 9 – A" → 9) — nobody types a level. */
+export function levelFromName(name: string): number {
+  const m = name.match(/\d{1,2}/);
+  return m ? Math.min(99, Number(m[0])) : 0;
+}
 
 /** Current-year classes; teachers see only their own (SRS §5.2). */
 export async function listClasses(ctx: Ctx): Promise<ClassRow[]> {
@@ -96,21 +98,16 @@ export async function listClasses(ctx: Ctx): Promise<ClassRow[]> {
     .select({
       id: classes.id,
       name: classes.name,
-      level: classes.level,
       shift: classes.shift,
-      capacity: classes.capacity,
-      classTeacherId: classes.classTeacherId,
-      classTeacherName: users.name,
       studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null)`,
       subjectCount: sql<number>`(select count(*)::int from ${classSubjects} cs where cs.class_id = "classes"."id" and cs.archived_at is null)`,
     })
     .from(classes)
-    .leftJoin(users, eq(users.id, classes.classTeacherId))
     .where(and(eq(classes.academicYearId, year.id), isNull(classes.archivedAt), scope ? inArray(classes.id, scope) : undefined))
     .orderBy(asc(classes.level), asc(classes.name));
 }
 
-export type ClassInput = { name: string; level: number; shift?: string | null; capacity?: number | null; classTeacherId?: string | null };
+export type ClassInput = { name: string; shift?: string | null };
 
 export async function createClass(ctx: Ctx, input: ClassInput & { subjectIds?: string[] }) {
   assertAdmin(ctx);
@@ -122,10 +119,8 @@ export async function createClass(ctx: Ctx, input: ClassInput & { subjectIds?: s
         academyId: ctx.academyId,
         academicYearId: year.id,
         name: input.name.trim(),
-        level: input.level,
+        level: levelFromName(input.name),
         shift: input.shift?.trim() || null,
-        capacity: input.capacity ?? null,
-        classTeacherId: input.classTeacherId || null,
       })
       .returning();
     if (input.subjectIds?.length) {
@@ -144,11 +139,10 @@ export async function updateClass(ctx: Ctx, id: string, input: Partial<ClassInpu
     const [after] = await tx
       .update(classes)
       .set({
-        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-        ...(input.level !== undefined ? { level: input.level } : {}),
+        ...(input.name !== undefined ? { name: input.name.trim(), level: levelFromName(input.name) } : {}),
         ...(input.shift !== undefined ? { shift: input.shift?.trim() || null } : {}),
-        ...(input.capacity !== undefined ? { capacity: input.capacity } : {}),
-        ...(input.classTeacherId !== undefined ? { classTeacherId: input.classTeacherId || null } : {}),
+        // No "class teacher" any more: teachers are assigned per subject only.
+        classTeacherId: null,
       })
       .where(eq(classes.id, id))
       .returning();
@@ -157,8 +151,8 @@ export async function updateClass(ctx: Ctx, id: string, input: Partial<ClassInpu
       entityType: "class",
       entityId: id,
       summary: `Updated class ${after!.name}`,
-      before: { name: before.name, level: before.level, shift: before.shift, classTeacherId: before.classTeacherId },
-      after: { name: after!.name, level: after!.level, shift: after!.shift, classTeacherId: after!.classTeacherId },
+      before: { name: before.name, shift: before.shift },
+      after: { name: after!.name, shift: after!.shift },
     });
   });
 }
@@ -207,18 +201,13 @@ export async function getClassDetail(ctx: Ctx, id: string) {
     .select({
       id: classes.id,
       name: classes.name,
-      level: classes.level,
       shift: classes.shift,
-      capacity: classes.capacity,
-      classTeacherId: classes.classTeacherId,
-      classTeacherName: users.name,
       archivedAt: classes.archivedAt,
       academicYearId: classes.academicYearId,
       monthlyFee: classFees.monthlyFee,
       studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null)`,
     })
     .from(classes)
-    .leftJoin(users, eq(users.id, classes.classTeacherId))
     .leftJoin(classFees, eq(classFees.classId, classes.id))
     .where(and(eq(classes.id, id), eq(classes.academyId, ctx.academyId)));
   if (!cls) throw notFound("Class");

@@ -11,14 +11,14 @@ import { api, ApiClientError } from "@/lib/api";
 import { useMutation } from "@/lib/use-mutation";
 import { ClassFormSheet, type ClassValues, type Option } from "../class-form";
 
-export function EditClassButton({ values, teachers }: { values: ClassValues; teachers: Option[] }) {
+export function EditClassButton({ values }: { values: ClassValues }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button variant="secondary" size="icon" onClick={() => setOpen(true)} aria-label="Edit class">
         <Pencil />
       </Button>
-      {open && <ClassFormSheet initial={values} teachers={teachers} onClose={() => setOpen(false)} />}
+      {open && <ClassFormSheet initial={values} onClose={() => setOpen(false)} />}
     </>
   );
 }

@@ -100,7 +100,7 @@ export async function seedDemo(db: Database): Promise<void> {
     for (const [ci, def] of classDefs.entries()) {
       const [cls] = await tx
         .insert(s.classes)
-        .values({ academyId, academicYearId: yearId, name: def.name, level: def.level, shift: def.shift, capacity: 40, classTeacherId: def.ct })
+        .values({ academyId, academicYearId: yearId, name: def.name, level: def.level, shift: def.shift })
         .returning();
       await tx.insert(s.classFees).values({ classId: cls!.id, monthlyFee: def.fee, setBy: owner.id });
       for (const [subjectName, teacher] of Object.entries(def.subjects)) {

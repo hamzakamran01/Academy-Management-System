@@ -1,9 +1,9 @@
-import { BookOpen, Crown } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AccountActions } from "@/components/account-actions";
 import { PageHeader } from "@/components/shell/page-header";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, SectionTitle } from "@/components/ui/card";
 import { Avatar, ListCard, ListRow } from "@/components/ui/data";
 import { EmptyState } from "@/components/ui/feedback";
@@ -54,17 +54,6 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
           <TeacherSummaryGrid s={summary} compact />
         </CardBody>
       </Card>
-
-      {t.classTeacherOf.length > 0 && (
-        <Card className="mb-5">
-          <CardHeader title="Class teacher of" description="In charge of these classes" />
-          <CardBody className="flex flex-wrap gap-2">
-            {t.classTeacherOf.map((c) => (
-              <Badge key={c.id} tone="primary" size="md" icon={Crown}>{c.name}</Badge>
-            ))}
-          </CardBody>
-        </Card>
-      )}
 
       <SectionTitle>Teaching this year</SectionTitle>
       {t.assignments.length ? (

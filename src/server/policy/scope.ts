@@ -35,7 +35,7 @@ export const teacherClassSubjectIds = cache(async (userId: string, academyId: st
   return rows.map((r) => r.id);
 });
 
-/** Classes of those class_subjects ∪ the class where they are class teacher. */
+/** Classes where the teacher teaches at least one subject (there is no "class teacher"). */
 export const teacherClassIds = cache(async (userId: string, academyId: string): Promise<string[]> => {
   const year = await getCurrentYear(academyId);
   if (!year) return [];
@@ -47,12 +47,9 @@ export const teacherClassIds = cache(async (userId: string, academyId: string): 
       and(
         eq(classes.academicYearId, year.id),
         isNull(classes.archivedAt),
-        or(
-          eq(classes.classTeacherId, userId),
-          csIds.length
-            ? inArray(classes.id, db.select({ id: classSubjects.classId }).from(classSubjects).where(inArray(classSubjects.id, csIds)))
-            : sql`false`,
-        ),
+        csIds.length
+          ? inArray(classes.id, db.select({ id: classSubjects.classId }).from(classSubjects).where(inArray(classSubjects.id, csIds)))
+          : sql`false`,
       ),
     );
   return rows.map((r) => r.id);

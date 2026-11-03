@@ -195,12 +195,6 @@ export async function teacherProfile(ctx: Ctx, teacherId: string) {
         .where(and(eq(classSubjectTeachers.teacherId, teacherId), isNull(classSubjectTeachers.toDate), isNull(classes.archivedAt), eq(classes.academicYearId, year.id)))
         .orderBy(asc(classes.level), asc(classes.name), asc(subjects.name))
     : [];
-  const classTeacherOf = year
-    ? await db
-        .select({ id: classes.id, name: classes.name })
-        .from(classes)
-        .where(and(eq(classes.classTeacherId, teacherId), isNull(classes.archivedAt), eq(classes.academicYearId, year.id)))
-    : [];
   return {
     id: person.id,
     name: person.name,
@@ -209,7 +203,6 @@ export async function teacherProfile(ctx: Ctx, teacherId: string) {
     invited: !person.passwordHash,
     lastActiveAt: person.lastActiveAt,
     assignments,
-    classTeacherOf,
   };
 }
 
