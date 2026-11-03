@@ -2,11 +2,11 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { SearchInput, Select } from "@/components/ui/field";
+import { SearchInput } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 
-/** URL-driven filters (shareable, survive refresh). Search is debounced. */
-export function StudentFilters({ classes, showStatus }: { classes: { id: string; name: string }[]; showStatus: boolean }) {
+/** Debounced search that writes `q` to the URL (keeps other params, resets the page). */
+function useUrlSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -21,7 +21,8 @@ export function StudentFilters({ classes, showStatus }: { classes: { id: string;
       else next.delete(k);
     }
     next.delete("page");
-    start(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
+    const qs = next.toString();
+    start(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }));
   };
 
   useEffect(() => {
@@ -34,34 +35,54 @@ export function StudentFilters({ classes, showStatus }: { classes: { id: string;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
+  return { q, setQ, pending, update, params };
+}
+
+/** First screen: one search box across every class. */
+export function StudentSearch({ placeholder }: { placeholder: string }) {
+  const { q, setQ, pending } = useUrlSearch();
+  return (
+    <div className={cn("mb-4 transition-opacity", pending && "opacity-70")}>
+      <SearchInput placeholder={placeholder} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
+    </div>
+  );
+}
+
+/** Inside a class: search within it, plus Active / Removed and Fee unpaid for the office. */
+export function StudentFilters({ showStatus, showFee, inClass }: { showStatus: boolean; showFee: boolean; inClass: boolean }) {
+  const { q, setQ, pending, update, params } = useUrlSearch();
   const status = params.get("status") ?? "active";
   const fee = params.get("feeStatus") ?? "";
 
   return (
     <div className={cn("mb-4 space-y-3 transition-opacity", pending && "opacity-70")}>
-      <SearchInput placeholder="Search name, roll no. or phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
-      <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Select
-          aria-label="Class"
-          className="h-10 w-auto min-w-36 text-sm"
-          value={params.get("classId") ?? ""}
-          onChange={(e) => update({ classId: e.target.value || null })}
-        >
-          <option value="">All classes</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Select>
-        {showStatus &&
-          (["active", "removed", "all"] as const).map((s) => (
-            <FilterChip key={s} on={status === s} onClick={() => update({ status: s === "active" ? null : s })}>
-              {s === "active" ? "Active" : s === "removed" ? "Removed" : "All"}
+      <SearchInput
+        placeholder={inClass ? "Search in this class" : "Search name, roll no. or phone"}
+        // Coming from the first screen's search: keep typing without re-tapping.
+        autoFocus={!inClass && !!q}
+        onFocus={(e) => {
+          const n = e.currentTarget.value.length;
+          e.currentTarget.setSelectionRange(n, n);
+        }}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        aria-label="Search students"
+      />
+      {(showStatus || showFee) && (
+        <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          {showStatus &&
+            (["active", "removed"] as const).map((s) => (
+              <FilterChip key={s} on={status === s} onClick={() => update({ status: s === "active" ? null : s })}>
+                {s === "active" ? "Active" : "Removed"}
+              </FilterChip>
+            ))}
+          {showFee && (
+            <FilterChip on={fee === "unpaid"} onClick={() => update({ feeStatus: fee === "unpaid" ? null : "unpaid" })}>
+              Fee unpaid
             </FilterChip>
-          ))}
-        <FilterChip on={fee === "unpaid"} onClick={() => update({ feeStatus: fee === "unpaid" ? null : "unpaid" })}>
-          Fee unpaid
-        </FilterChip>
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -73,7 +94,7 @@ function FilterChip({ on, onClick, children }: { on: boolean; onClick: () => voi
       aria-pressed={on}
       onClick={onClick}
       className={cn(
-        "inline-flex h-10 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors",
+        "inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-[13px] font-medium transition-[background-color,transform] active:scale-95",
         on ? "border-fg bg-fg text-bg" : "border-border bg-surface text-fg hover:bg-surface-2",
       )}
     >

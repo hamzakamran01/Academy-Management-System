@@ -31,6 +31,8 @@ export function StudentList({
   currentClassId,
   today,
   showFee,
+  showClass = true,
+  startIndex = 0,
 }: {
   rows: Row[];
   moveMode: boolean;
@@ -38,6 +40,10 @@ export function StudentList({
   currentClassId?: string;
   today: string;
   showFee: boolean;
+  /** Inside one class the class name is redundant — show roll and guardian instead. */
+  showClass?: boolean;
+  /** Serial number of the first row on this page. */
+  startIndex?: number;
 }) {
   const [selected, setSelected] = useState<string[]>(moveMode ? rows.filter((r) => r.status === "active").map((r) => r.id) : []);
   const [open, setOpen] = useState(false);
@@ -53,8 +59,8 @@ export function StudentList({
           Everyone is selected. Untick anyone who should stay, then choose the new class.
         </Notice>
       )}
-      <ul className="mb-20 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card lg:mb-0">
-        {rows.map((r) => {
+      <ul className={cn("stagger divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card", moveMode && "mb-20 lg:mb-0")}>
+        {rows.map((r, i) => {
           const on = selected.includes(r.id);
           const body = (
             <>
@@ -63,12 +69,13 @@ export function StudentList({
                   {on ? <CheckSquare className="size-6" /> : <Square className="size-6" />}
                 </span>
               ) : (
-                <Avatar name={r.name} />
+                <span className="tabular w-6 shrink-0 text-center text-[13px] font-semibold text-subtle">{startIndex + i + 1}</span>
               )}
+              {!moveMode && <Avatar name={r.name} />}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-medium">{r.name}</p>
                 <p className="truncate text-[13px] text-muted">
-                  {r.className ? `${r.className} · Roll ${r.rollNo}` : `No class · ${r.registrationNo}`}
+                  {!r.className ? `No class · ${r.registrationNo}` : showClass ? `${r.className} · Roll ${r.rollNo}` : `Roll ${r.rollNo} · ${r.registrationNo}`}
                 </p>
               </div>
               {r.status === "removed" ? (
@@ -78,7 +85,7 @@ export function StudentList({
               ) : null}
             </>
           );
-          const cls = "flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-surface-2 active:bg-surface-3";
+          const cls = "flex min-h-16 w-full items-center gap-3 px-3 py-3 text-start transition-colors hover:bg-surface-2 active:bg-surface-3 sm:px-4";
           return (
             <li key={r.id}>
               {moveMode ? (
