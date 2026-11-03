@@ -3,7 +3,7 @@
 import { Bell, ChevronsUpDown, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,7 +15,11 @@ import { ROLE_LABEL, type Role } from "@/lib/roles";
 
 /** Phone: fixed bottom tab bar, 5 tabs, thumb-reachable (UX-02). */
 export function BottomNav({ role }: { role: Role }) {
-  const pathname = usePathname();
+  const actual = usePathname();
+  // Light the tapped tab immediately (optimistic), before the new screen arrives.
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => setPending(null), [actual]);
+  const pathname = pending ?? actual;
   const items = BOTTOM_NAV[role];
   // "More" lights up for any route not owned by another tab
   const owned = items.slice(0, -1).some((i) => isActive(pathname, i));
@@ -33,11 +37,12 @@ export function BottomNav({ role }: { role: Role }) {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                onClick={() => item.href !== actual && setPending(item.href)}
                 className="group flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium"
               >
                 <span
                   className={cn(
-                    "flex h-8 w-14 items-center justify-center rounded-full transition-colors",
+                    "flex h-8 w-14 items-center justify-center rounded-full transition-[background-color,color,transform] duration-200 group-active:scale-90",
                     active ? "bg-primary-soft text-primary-soft-fg" : "text-muted group-active:bg-surface-2",
                   )}
                 >

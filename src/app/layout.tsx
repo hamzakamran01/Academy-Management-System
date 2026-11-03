@@ -5,6 +5,9 @@ import { Toaster } from "sonner";
 import { THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 import { APP_NAME } from "@/lib/brand";
+import { Suspense } from "react";
+import { Splash } from "@/components/brand";
+import { RouteProgress } from "@/components/motion/route-progress";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -32,6 +35,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" dir="ltr" className={inter.variable} data-theme={dark ? "dark" : undefined} suppressHydrationWarning>
       <body>
+        <Splash />
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         {children}
         <Toaster
           position="top-center"

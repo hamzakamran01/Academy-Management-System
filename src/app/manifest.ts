@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: APP_NAME,
     short_name: APP_NAME,
-    description: "Results, teaching progress and fees for your academy.",
+    description: "Kamran Maths and Science Academy — results, daily class logs, fees and salaries.",
     start_url: "/home",
     scope: "/",
     display: "standalone",
