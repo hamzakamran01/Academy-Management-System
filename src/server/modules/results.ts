@@ -18,6 +18,7 @@ import {
 } from "@/server/db/schema";
 import type { Ctx } from "@/server/auth/session";
 import { rows as execRows } from "@/server/db/connect";
+import { formatDate } from "@/lib/format";
 import { classStats, fmtMark, gradeFor, markProblem, percentage, positions } from "@/lib/grades";
 import { isStaffAdmin } from "@/lib/roles";
 import { badRequest, conflict, forbidden, notFound } from "@/server/http";
@@ -87,7 +88,10 @@ async function loadAssessment(tx: Tx, ctx: Ctx, id: string) {
 }
 
 // ─── Create / edit ──────────────────────────────────────────────────────────
-export type AssessmentInput = { classSubjectId: string; type: AssessmentType; title: string; date: string; totalMarks: number; chapterIds?: string[] };
+export type AssessmentInput = { classSubjectId: string; type: AssessmentType; title?: string | null; date: string; totalMarks: number };
+
+/** "Weekly test · 3 Nov" — used when the teacher leaves the name blank. */
+export const autoTitle = (type: AssessmentType, date: string) => `${TYPE_LABEL[type]} · ${formatDate(date).replace(/,? \d{4}$/, "")}`;
 
 export async function createAssessment(ctx: Ctx, input: AssessmentInput) {
   await assertCanEditCs(ctx, input.classSubjectId);
@@ -95,7 +99,7 @@ export async function createAssessment(ctx: Ctx, input: AssessmentInput) {
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(assessments)
-      .values({ academyId: ctx.academyId, classSubjectId: input.classSubjectId, type: input.type, title: input.title.trim(), date: input.date, totalMarks: input.totalMarks, chapterIds: input.chapterIds ?? [], createdBy: ctx.userId })
+      .values({ academyId: ctx.academyId, classSubjectId: input.classSubjectId, type: input.type, title: input.title?.trim() || autoTitle(input.type, input.date), date: input.date, totalMarks: input.totalMarks, createdBy: ctx.userId })
       .returning();
     await logActivity(tx, ctx, { action: "assessment.create", entityType: "assessment", entityId: row!.id, summary: `Created test “${row!.title}”` });
     return { id: row!.id };
@@ -116,11 +120,10 @@ export async function updateAssessment(ctx: Ctx, id: string, input: Partial<Omit
     await tx
       .update(assessments)
       .set({
-        ...(input.title ? { title: input.title.trim() } : {}),
+        ...(input.title?.trim() ? { title: input.title.trim() } : {}),
         ...(input.type ? { type: input.type } : {}),
         ...(input.date ? { date: input.date } : {}),
         ...(input.totalMarks !== undefined ? { totalMarks: input.totalMarks } : {}),
-        ...(input.chapterIds ? { chapterIds: input.chapterIds } : {}),
         version: sql`${assessments.version} + 1`,
       })
       .where(eq(assessments.id, id));
@@ -141,16 +144,17 @@ export async function deleteDraftAssessment(ctx: Ctx, id: string) {
 }
 
 /** BR-RES-10: one draft per subject of the class, same type/title/date/total. */
-export async function createExamGroup(ctx: Ctx, input: { classId: string; type: AssessmentType; title: string; date: string; totalMarks: number }) {
+export async function createExamGroup(ctx: Ctx, input: { classId: string; type: AssessmentType; title?: string | null; date: string; totalMarks: number }) {
+  const title = input.title?.trim() || autoTitle(input.type, input.date);
   if (!isStaffAdmin(ctx.role)) throw forbidden();
   return db.transaction(async (tx) => {
     const [cls] = await tx.select({ name: classes.name }).from(classes).where(and(eq(classes.id, input.classId), eq(classes.academyId, ctx.academyId)));
     if (!cls) throw notFound("Class");
     const css = await tx.select({ id: classSubjects.id }).from(classSubjects).where(and(eq(classSubjects.classId, input.classId), isNull(classSubjects.archivedAt)));
     if (!css.length) throw badRequest("NO_SUBJECTS", "This class has no subjects yet");
-    const [g] = await tx.insert(examGroups).values({ academyId: ctx.academyId, classId: input.classId, type: input.type, title: input.title.trim(), createdBy: ctx.userId }).returning();
+    const [g] = await tx.insert(examGroups).values({ academyId: ctx.academyId, classId: input.classId, type: input.type, title, createdBy: ctx.userId }).returning();
     await tx.insert(assessments).values(
-      css.map((cs) => ({ academyId: ctx.academyId, classSubjectId: cs.id, examGroupId: g!.id, type: input.type, title: input.title.trim(), date: input.date, totalMarks: input.totalMarks, createdBy: ctx.userId })),
+      css.map((cs) => ({ academyId: ctx.academyId, classSubjectId: cs.id, examGroupId: g!.id, type: input.type, title, date: input.date, totalMarks: input.totalMarks, createdBy: ctx.userId })),
     );
     await logActivity(tx, ctx, { action: "exam_group.create", entityType: "exam_group", entityId: g!.id, summary: `Created “${g!.title}” for ${cls.name} (${css.length} subjects)` });
     return { id: g!.id, tests: css.length };
@@ -322,9 +326,15 @@ export async function publishAssessment(ctx: Ctx, id: string) {
     if (a.status === "published") return { status: "published" as const, notified: 0 };
     const list = await roster(tx, a.classSubjectId, classId, a.date);
     const have = new Map((await tx.select().from(marks).where(eq(marks.assessmentId, id))).map((m) => [m.studentId, m]));
+    // Anyone left blank is recorded as Absent — publishing never gets stuck.
     const missing = list.filter((r) => !have.has(r.id)).map((r) => r.id);
     if (missing.length) {
-      throw badRequest("INCOMPLETE_MARKS", `${missing.length} student${missing.length === 1 ? " has" : "s have"} no marks — enter marks or mark Absent`, { missing });
+      const filled = await tx
+        .insert(marks)
+        .values(missing.map((studentId) => ({ assessmentId: id, studentId, value: null, isAbsent: true, updatedBy: ctx.userId })))
+        .onConflictDoNothing()
+        .returning();
+      for (const m of filled) have.set(m.studentId, m);
     }
     const correcting = a.status === "unlocked";
     const now = new Date();

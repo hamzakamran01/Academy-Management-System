@@ -6,7 +6,7 @@ import { zDate, zId } from "@/lib/validation";
 
 const schema = z.object({
   classId: zId,
-  type: z.enum(["weekly", "monthly", "midterm", "final", "other"]),
+  type: z.enum(["weekly", "monthly"]),
   title: z.string().trim().min(2).max(80),
   date: zDate,
   totalMarks: z.number().positive().max(1000),

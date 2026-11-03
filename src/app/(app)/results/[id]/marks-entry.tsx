@@ -4,6 +4,7 @@ import { CheckCircle2, CloudOff, Loader2, Send, UserX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { celebrate } from "@/components/motion/celebrate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/feedback";
 import { Sheet } from "@/components/ui/sheet";
@@ -139,16 +140,10 @@ export function MarksEntry({ testId, total, rows, passPercent }: { testId: strin
     try {
       const r = await api<{ notified: number }>(`/assessments/${testId}/publish`, { body: {} });
       localStorage.removeItem(draftKey(testId));
-      toast.success(`Published · ${r.notified} parent${r.notified === 1 ? "" : "s"} notified`);
+      celebrate({ title: "Results published", subtitle: `${r.notified} parent${r.notified === 1 ? "" : "s"} notified`, mood: "proud" });
       setConfirm(false);
       router.refresh();
     } catch (err) {
-      if (err instanceof ApiClientError && err.code === "INCOMPLETE_MARKS") {
-        setMissing(new Set((err.details?.missing as string[]) ?? []));
-        setConfirm(false);
-        const first = (err.details?.missing as string[])?.[0];
-        if (first) inputs.current.get(first)?.focus();
-      }
       toast.error(errorMessage(err));
     } finally {
       setPublishing(false);
@@ -156,9 +151,22 @@ export function MarksEntry({ testId, total, rows, passPercent }: { testId: strin
   }
 
   const problems = parsed.filter((p) => p.problem).length;
+  const blanks = parsed.filter((p) => p.empty).length;
 
   return (
     <>
+      <ol className="mb-3 flex items-center gap-2 text-[13px] font-medium" aria-label="Steps">
+        <li className={cn("flex items-center gap-1.5", entered < rows.length ? "text-fg" : "text-success-fg")}>
+          <span className={cn("flex size-5 items-center justify-center rounded-full text-[11px] font-bold", entered < rows.length ? "bg-primary text-primary-fg" : "bg-success text-white")}>1</span>
+          Type marks
+        </li>
+        <span className="h-px w-6 bg-border-strong" aria-hidden />
+        <li className="flex items-center gap-1.5 text-muted">
+          <span className="flex size-5 items-center justify-center rounded-full bg-surface-3 text-[11px] font-bold">2</span>
+          Tap Publish
+        </li>
+        <span className="ms-auto text-xs font-normal text-subtle max-sm:hidden">Tip: press A for absent</span>
+      </ol>
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
         {parsed.map((p, i) => (
           <li
@@ -249,23 +257,28 @@ export function MarksEntry({ testId, total, rows, passPercent }: { testId: strin
         onOpenChange={setConfirm}
         size="sm"
         title="Publish results?"
-        description="Parents are notified right away and marks are locked. Only the office can unlock them for corrections."
+        description="Parents are notified right away. After publishing, only the office can unlock marks for corrections."
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirm(false)}>Keep editing</Button>
-            <Button loading={publishing} onClick={publish}>Publish</Button>
+            <Button loading={publishing} disabled={problems > 0} onClick={publish}>Publish</Button>
           </>
         }
       >
-        {entered < rows.length ? (
-          <Notice tone="warning">{rows.length - entered} student{rows.length - entered === 1 ? " has" : "s have"} no marks yet — enter marks or mark them Absent first.</Notice>
-        ) : (
+        <div className="space-y-3">
+          {problems > 0 ? (
+            <Notice tone="danger">{problems} mark{problems === 1 ? " is" : "s are"} above the total — fix {problems === 1 ? "it" : "them"} first.</Notice>
+          ) : blanks > 0 ? (
+            <Notice tone="warning">
+              {blanks} student{blanks === 1 ? " has" : "s have"} no marks — they will be marked <b>Absent</b>.
+            </Notice>
+          ) : null}
           <div className="grid grid-cols-3 gap-2 text-center">
             <Mini label="Average" value={stats.average != null ? fmtMark(stats.average) : "—"} />
             <Mini label="Highest" value={stats.highest != null ? fmtMark(stats.highest) : "—"} />
-            <Mini label="Absent" value={String(stats.absent)} />
+            <Mini label="Absent" value={String(stats.absent + blanks)} />
           </div>
-        )}
+        </div>
       </Sheet>
     </>
   );

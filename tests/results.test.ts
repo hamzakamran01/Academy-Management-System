@@ -50,10 +50,6 @@ describe("results", () => {
     expect(r.errors.map((e) => e.message)).toEqual(["Max is 25", "Use whole or half marks"]);
   });
 
-  it("refuses to publish incomplete marks (BR-RES-03)", async () => {
-    await expect(publishAssessment(teacher, testId)).rejects.toMatchObject({ code: "INCOMPLETE_MARKS" });
-  });
-
   it("publishes, locks and notifies parents (BR-RES-04)", async () => {
     await saveMarks(teacher, testId, [
       { studentId: ids[0]!, value: 18, absent: false },
@@ -89,5 +85,15 @@ describe("results", () => {
 
   it("parents can't see other children", async () => {
     await expect(studentResults(parent, ids[1]!)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("names a test automatically and marks blanks Absent on publish", async () => {
+    const quick = await createAssessment(teacher, { classSubjectId: (await getMarksSheet(teacher, testId)).classSubjectId, type: "monthly", title: "", date: todayPkt(), totalMarks: 50 });
+    const before = await getMarksSheet(teacher, quick.id);
+    expect(before.title).toMatch(/^Monthly test · \d{2} [A-Z][a-z]{2}$/);
+    await publishAssessment(teacher, quick.id);
+    const after = await getMarksSheet(teacher, quick.id);
+    expect(after.status).toBe("published");
+    expect(after.rows.every((r) => r.isAbsent)).toBe(true);
   });
 });

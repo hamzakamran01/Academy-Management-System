@@ -43,11 +43,11 @@ export const removeSchema = z.object({
   date: zDate,
 });
 
+/** Tests are Weekly or Monthly only. A blank title is generated ("Weekly test · 3 Nov"). */
 export const assessmentSchema = z.object({
   classSubjectId: zId,
-  type: z.enum(["weekly", "monthly", "midterm", "final", "other"]),
-  title: z.string().trim().min(2, "Enter a title").max(80),
+  type: z.enum(["weekly", "monthly"], { error: "Choose Weekly or Monthly" }),
+  title: z.string().trim().max(80).optional().nullable(),
   date: zDate,
   totalMarks: z.number({ error: "Enter total marks" }).positive("Must be more than 0").max(1000),
-  chapterIds: z.array(zId).max(50).optional(),
 });

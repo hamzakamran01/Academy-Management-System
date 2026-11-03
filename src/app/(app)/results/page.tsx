@@ -10,12 +10,11 @@ import { LinkTabs } from "@/components/ui/tabs";
 import { todayPkt } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import { fmtMark } from "@/lib/grades";
-import { isStaffAdmin } from "@/lib/roles";
 import { uuidOrUndefined } from "@/lib/validation";
 import { requireCtx } from "@/server/auth/session";
 import { listClasses } from "@/server/modules/org";
 import { classSubjectOptions, listAssessments, TYPE_LABEL } from "@/server/modules/results";
-import { CreateExamButton, CreateTestButton } from "./create-test";
+import { CreateTestButton } from "./create-test";
 import { ParentResults } from "./parent-results";
 
 export const metadata: Metadata = { title: "Results" };
@@ -26,7 +25,6 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
   if (ctx.role === "parent") return <ParentResults ctx={ctx} studentId={uuidOrUndefined(sp.student)} highlight={uuidOrUndefined(sp.test)} />;
 
   const classId = uuidOrUndefined(sp.classId);
-  const admin = isStaffAdmin(ctx.role);
   const [drafts, options, classes] = await Promise.all([listAssessments(ctx, { classId, status: "draft" }), classSubjectOptions(ctx), listClasses(ctx)]);
   const draftCount = drafts.length;
   // Open on what needs attention; if nothing is unfinished, show published results.
@@ -41,10 +39,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
         title="Results"
         subtitle={ctx.role === "teacher" ? "Your tests and marks" : "Tests across all classes"}
         actions={
-          <div className="flex gap-2">
-            {admin && <CreateExamButton classes={classes.map((c) => ({ id: c.id, name: c.name }))} today={todayPkt()} />}
-            <CreateTestButton options={options} today={todayPkt()} preselect={uuidOrUndefined(sp.new)} />
-          </div>
+          <CreateTestButton options={options} today={todayPkt()} preselect={uuidOrUndefined(sp.new)} />
         }
       />
       <form className="mb-2 flex gap-2" action="/results">
@@ -77,7 +72,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
         <EmptyState
           icon={tab === "draft" ? ClipboardList : GraduationCap}
           title={tab === "draft" ? "Nothing to finish" : "No published results yet"}
-          description={tab === "draft" ? "Create a test, type marks in front of names, then publish." : "Published tests appear here."}
+          description={tab === "draft" ? "Tap “New test”, type marks next to each name, then Publish." : "Published tests appear here."}
         />
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
@@ -89,9 +84,12 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
                   <span className="text-lg font-bold leading-tight">{a.date.slice(8)}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{a.title}</p>
+                  <p className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{a.title}</span>
+                    <Badge tone={a.type === "monthly" ? "info" : "neutral"} className="shrink-0">{a.type === "monthly" ? "Monthly" : a.type === "weekly" ? "Weekly" : TYPE_LABEL[a.type]}</Badge>
+                  </p>
                   <p className="truncate text-[13px] text-muted">
-                    {a.subjectName} · {a.className} · {TYPE_LABEL[a.type]} · /{fmtMark(a.totalMarks)}
+                    {a.subjectName} · {a.className} · out of {fmtMark(a.totalMarks)}
                   </p>
                   {a.correctionRequestedAt && a.status === "published" && <Badge tone="info" className="mt-1">Correction requested</Badge>}
                 </div>
