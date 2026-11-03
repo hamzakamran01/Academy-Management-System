@@ -72,7 +72,7 @@ export function NotificationList({ items }: { items: N[] }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className={cn("block text-[15px] leading-5", isUnread ? "font-semibold" : "font-medium")}>{n.title}</span>
-                        <span className="mt-0.5 line-clamp-2 block text-sm text-muted">{n.body}</span>
+                        <span className="mt-0.5 line-clamp-2 block text-sm text-muted [overflow-wrap:anywhere]">{n.body}</span>
                         <span className="mt-1 block text-xs text-subtle">{formatRelative(n.createdAt)}</span>
                       </span>
                       {isUnread && <span className="mt-2 size-2.5 shrink-0 rounded-full bg-primary" aria-label="Unread" />}

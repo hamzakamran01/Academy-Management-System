@@ -25,7 +25,7 @@ export function AnnouncementFeed({ items, me, isStaff }: { items: A[]; me: strin
     <ul className="space-y-3">
       {items.map((a) => (
         <li key={a.id} id={`a-${a.id}`} className="scroll-mt-20">
-          <Card className={cn("p-4", a.pinned && "border-primary/40 bg-primary-soft/25")}>
+          <Card className={cn("overflow-hidden p-4", a.pinned && "border-primary/40 bg-primary-soft/25")}>
             <div className="flex items-start gap-3">
               <Avatar name={a.authorName} size="sm" />
               <div className="min-w-0 flex-1">
@@ -34,8 +34,8 @@ export function AnnouncementFeed({ items, me, isStaff }: { items: A[]; me: strin
                   <span className="text-xs text-muted">{formatRelative(a.publishedAt)}</span>
                   {a.pinned && <Badge tone="primary" icon={Pin}>Pinned</Badge>}
                 </div>
-                <p className="mt-1.5 text-[17px] font-semibold leading-6">{a.title}</p>
-                <p className="mt-1 whitespace-pre-line text-[15px] leading-6 text-fg/90">{a.body}</p>
+                <p className="mt-1.5 text-[17px] font-semibold leading-6 [overflow-wrap:anywhere]">{a.title}</p>
+                <p className="mt-1 whitespace-pre-line text-[15px] leading-6 text-fg/90 [overflow-wrap:anywhere]">{a.body}</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {a.audienceType === "classes" ? a.classNames.map((c) => <Badge key={c}>{c}</Badge>) : <Badge>{AUD_LABEL[a.audienceType]}</Badge>}
                 </div>

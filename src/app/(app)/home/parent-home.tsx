@@ -121,8 +121,8 @@ export function ParentHome({ d }: { d: D }) {
               <Megaphone className="size-5" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold">{d.announcement.title}</p>
-              <p className="line-clamp-2 text-sm text-muted">{d.announcement.body}</p>
+              <p className="font-semibold [overflow-wrap:anywhere]">{d.announcement.title}</p>
+              <p className="line-clamp-2 text-sm text-muted [overflow-wrap:anywhere]">{d.announcement.body}</p>
               <p className="mt-1 text-xs text-subtle">{formatRelative(d.announcement.publishedAt)}</p>
             </div>
             <ChevronRight className="size-5 shrink-0 text-subtle" aria-hidden />

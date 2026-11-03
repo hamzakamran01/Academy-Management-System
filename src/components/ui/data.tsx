@@ -32,16 +32,17 @@ export function StatTile({
   }[tone];
   const body = (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-[13px] font-medium text-muted">{label}</p>
+      <div className="flex items-start gap-2.5">
+        {/* min-w-0 lets the label wrap instead of running under the icon */}
+        <p className="min-w-0 flex-1 text-[13px] font-medium leading-[18px] text-muted [overflow-wrap:anywhere]">{label}</p>
         {Icon && (
-          <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", iconTone)}>
+          <span className={cn("-me-1 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg", iconTone)}>
             <Icon className="size-[18px]" aria-hidden />
           </span>
         )}
       </div>
-      <p className="tabular mt-1.5 text-2xl font-bold tracking-tight">{value}</p>
-      {sub && <p className="mt-0.5 text-[13px] text-muted">{sub}</p>}
+      <p className="tabular mt-1.5 truncate text-2xl font-bold tracking-tight">{value}</p>
+      {sub && <p className="mt-0.5 text-[13px] leading-[18px] text-muted">{sub}</p>}
     </>
   );
   const cls = cn("block rounded-xl border border-border bg-surface p-4 shadow-card", className);

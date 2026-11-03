@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@node-rs/argon2", "web-push", "exceljs", "@electric-sql/pglite"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    // Client router cache: revisiting a tab within 30 s is instant (mutations call
+    // router.refresh(), which clears it, so edits still show immediately).
+    staleTimes: { dynamic: 30, static: 300 },
   },
   webpack(config, { isServer }) {
     if (isServer) {

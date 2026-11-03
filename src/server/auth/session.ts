@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -64,11 +64,19 @@ export async function revokeAllSessions(userId: string, role?: Role): Promise<vo
     .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt), role ? eq(sessions.role, role) : undefined));
 }
 
+/** postgres.js returns text[] as an array; PGlite may return the "{a,b}" literal. */
+function parseRoles(v: unknown): string[] {
+  if (Array.isArray(v)) return v as string[];
+  if (typeof v === "string") return v.replace(/^\{|\}$/g, "").split(",").filter(Boolean);
+  return [];
+}
+
 /** Resolve the current session once per request (React cache). */
 export const getCtx = cache(async (): Promise<Ctx | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
+  // One round trip: session + user + active roles (latency to the DB dominates page time).
   const [row] = await db
     .select({
       sessionId: sessions.id,
@@ -79,27 +87,27 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
       name: users.name,
       phone: users.phone,
       status: users.status,
+      roles: sql<string[] | null>`(select array_agg(ra.role::text) from ${roleAssignments} ra where ra.user_id = ${users.id} and ra.active)`,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.tokenHash, hashToken(token)), isNull(sessions.revokedAt), gt(sessions.expiresAt, new Date())));
   if (!row || row.status !== "active") return null;
 
-  const roleRows = await db
-    .select({ role: roleAssignments.role })
-    .from(roleAssignments)
-    .where(and(eq(roleAssignments.userId, row.userId), eq(roleAssignments.active, true)));
-  const roles = ROLE_PRIORITY.filter((r) => roleRows.some((x) => x.role === r));
+  const held = new Set(parseRoles(row.roles));
+  const roles = ROLE_PRIORITY.filter((r) => held.has(r));
   // BR-AUTH-08: a removed role ends that role's sessions.
   if (!roles.includes(row.role)) return null;
 
   if (Date.now() - row.lastSeenAt.getTime() > SLIDE_EVERY_MS) {
     const now = new Date();
-    await db
-      .update(sessions)
-      .set({ lastSeenAt: now, expiresAt: new Date(now.getTime() + SESSION_DAYS[row.role] * 86_400_000) })
-      .where(eq(sessions.id, row.sessionId));
-    await db.update(users).set({ lastActiveAt: now }).where(eq(users.id, row.userId));
+    await Promise.all([
+      db
+        .update(sessions)
+        .set({ lastSeenAt: now, expiresAt: new Date(now.getTime() + SESSION_DAYS[row.role] * 86_400_000) })
+        .where(eq(sessions.id, row.sessionId)),
+      db.update(users).set({ lastActiveAt: now }).where(eq(users.id, row.userId)),
+    ]);
   }
 
   return {

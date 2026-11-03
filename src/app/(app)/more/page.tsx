@@ -37,15 +37,15 @@ export default async function MorePage() {
             <SectionTitle>{group.label}</SectionTitle>
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               {group.items.map(({ href, label, icon: Icon }) => (
-                <li key={href}>
+                <li key={href} className="min-w-0">
                   <Link
                     href={href}
-                    className="flex h-full min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface p-3 text-center shadow-card transition-colors hover:bg-surface-2 active:bg-surface-3"
+                    className="flex h-full min-h-24 min-w-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-border bg-surface px-1.5 py-3 text-center shadow-card transition-[background-color,transform] hover:bg-surface-2 active:scale-[0.97] active:bg-surface-3"
                   >
                     <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-fg">
                       <Icon className="size-5" aria-hidden />
                     </span>
-                    <span className="text-[13px] font-medium leading-tight">{label}</span>
+                    <span className="w-full hyphens-auto text-[12.5px] font-medium leading-tight [overflow-wrap:anywhere]">{label}</span>
                   </Link>
                 </li>
               ))}
