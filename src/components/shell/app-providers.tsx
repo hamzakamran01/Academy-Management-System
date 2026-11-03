@@ -3,6 +3,7 @@
 import { Bell } from "lucide-react";
 import Link from "next/link";
 import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { CelebrationHost } from "@/components/motion/celebrate";
 
 const UnreadCtx = createContext(0);
 
@@ -12,7 +13,12 @@ export function AppProviders({ unread, children }: { unread: number; children: R
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
   }, []);
-  return <UnreadCtx.Provider value={unread}>{children}</UnreadCtx.Provider>;
+  return (
+    <UnreadCtx.Provider value={unread}>
+      {children}
+      <CelebrationHost />
+    </UnreadCtx.Provider>
+  );
 }
 
 export const useUnread = () => useContext(UnreadCtx);

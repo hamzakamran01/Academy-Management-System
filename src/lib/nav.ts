@@ -4,7 +4,6 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
-  ClipboardList,
   FileBarChart,
   GraduationCap,
   History,
@@ -18,7 +17,6 @@ import {
   Settings,
   ShieldCheck,
   Sun,
-  TrendingUp,
   UserCircle,
   Users,
   UsersRound,
@@ -37,13 +35,13 @@ export const BOTTOM_NAV: Record<Role, NavItem[]> = {
   parent: [
     { href: "/home", label: "Home", icon: Home },
     { href: "/results", label: "Results", icon: GraduationCap },
-    { href: "/progress", label: "Progress", icon: BookOpen, match: ["/homework"] },
+    { href: "/progress", label: "In class", icon: BookOpen, match: ["/homework"] },
     { href: "/fees", label: "Fees", icon: Wallet },
     more,
   ],
   teacher: [
     { href: "/home", label: "Today", icon: Sun },
-    { href: "/classes", label: "My Classes", icon: Library, match: ["/lesson", "/plans", "/syllabus"] },
+    { href: "/classes", label: "My Classes", icon: Library, match: ["/lesson", "/my-progress"] },
     { href: "/results", label: "Results", icon: GraduationCap },
     { href: "/my-salary", label: "Salary", icon: Banknote },
     more,
@@ -74,7 +72,7 @@ const people = (role: Role): NavItem[] => [
 const academics: NavItem[] = [
   { href: "/classes", label: "Classes", icon: Library },
   { href: "/results", label: "Results", icon: GraduationCap },
-  { href: "/progress", label: "Teaching progress", icon: TrendingUp, match: ["/syllabus", "/plans"] },
+  { href: "/progress", label: "Teaching log", icon: NotebookPen },
 ];
 
 /** Full menu: desktop sidebar and the "More" screen. */
@@ -113,11 +111,10 @@ export const MENU: Record<Role, NavGroup[]> = {
     { label: "Teaching", items: [
       { href: "/home", label: "Today", icon: Sun },
       { href: "/classes", label: "My classes", icon: Library },
-      { href: "/plans", label: "Weekly plans", icon: ClipboardList },
       { href: "/results", label: "Results", icon: GraduationCap },
     ] },
     { label: "Me", items: [
-      { href: "/my-progress", label: "My progress", icon: ListChecks },
+      { href: "/my-progress", label: "My logs", icon: ListChecks },
       { href: "/my-salary", label: "Salary", icon: Banknote },
       { href: "/reports", label: "Reports", icon: FileBarChart },
     ] },
@@ -131,7 +128,7 @@ export const MENU: Record<Role, NavGroup[]> = {
     { label: "My child", items: [
       { href: "/home", label: "Home", icon: Home },
       { href: "/results", label: "Results", icon: GraduationCap },
-      { href: "/progress", label: "Progress", icon: BookOpen },
+      { href: "/progress", label: "In class", icon: BookOpen },
       { href: "/homework", label: "Homework", icon: NotebookPen },
       { href: "/fees", label: "Fees", icon: Wallet },
     ] },

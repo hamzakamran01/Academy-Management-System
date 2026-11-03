@@ -117,7 +117,7 @@ export function Holidays({ holidays, editable, today }: { holidays: Holiday[]; e
     <Card>
       <CardHeader
         title="Holidays"
-        description="Visible to everyone. Excluded from syllabus pace and reminders."
+        description="Visible to everyone. No class logs are expected and no reminders are sent."
         action={
           editable && (
             <Button size="sm" variant="soft" onClick={() => setAdding(true)}>

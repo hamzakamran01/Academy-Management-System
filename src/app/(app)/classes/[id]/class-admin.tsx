@@ -29,7 +29,7 @@ export function TeacherPicker({ classSubjectId, teacherId, teachers }: { classSu
   return (
     <Select
       aria-label="Subject teacher"
-      className="h-10 min-w-40 text-sm"
+      className="h-10 w-full min-w-0 truncate text-sm"
       disabled={busy}
       value={teacherId ?? ""}
       onChange={(e) =>
@@ -59,7 +59,7 @@ export function SubjectRowMenu({ classSubjectId, name }: { classSubjectId: strin
         onOpenChange={setOpen}
         size="sm"
         title={`Remove ${name} from this class?`}
-        description="Students' past results and syllabus progress for this subject stay in history."
+        description="Past results and daily logs for this subject stay in history."
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>

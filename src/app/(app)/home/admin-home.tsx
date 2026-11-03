@@ -1,6 +1,7 @@
-import { AlertTriangle, ClipboardCheck, Hourglass, PenLine, UserMinus, UserPlus, Users, Wallet } from "lucide-react";
+import { Hourglass, UserMinus, UserPlus, Users, Wallet } from "lucide-react";
 import Link from "next/link";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { DayStrip } from "@/components/teaching-log";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Avatar, ProgressBar, StatTile } from "@/components/ui/data";
 import { formatMonth, formatTime } from "@/lib/format";
@@ -47,33 +48,57 @@ export function AdminHome({ d }: { d: D }) {
         </Card>
       </Link>
 
-      <Card>
-        <CardHeader
-          title="Teaching this week"
-          description={`${d.teaching.missingPlans} plans not submitted · ${d.teaching.noLogToday} subjects without a log today`}
-          action={<Link href="/progress" className="text-sm font-medium text-primary hover:underline">Open →</Link>}
-        />
-        {d.teaching.teachers.length ? (
-          <ul className="divide-y divide-border border-t border-border">
-            {d.teaching.teachers.map((t) => (
-              <li key={t.teacherId}>
-                <Link href={`/teachers/${t.teacherId}`} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2">
-                  <Avatar name={t.teacherName} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{t.teacherName}</p>
-                    <p className="line-clamp-2 text-[13px] text-muted">{t.reasons.join(" · ")}</p>
-                  </div>
-                  {t.reasons.some((r) => r.includes("Plan")) ? <ClipboardCheck className="size-5 text-warning" aria-label="Plan missing" /> : t.reasons.some((r) => r.includes("log")) ? <PenLine className="size-5 text-warning" aria-label="Log missing" /> : <AlertTriangle className="size-5 text-danger" aria-label="Behind" />}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader
+            title="Teaching log"
+            description={d.teaching.isWorkingDay ? "Daily logs written by teachers today" : "No classes today"}
+            action={<Link href="/progress" className="text-sm font-medium text-primary hover:underline">Open →</Link>}
+          />
           <CardBody>
-            <p className="text-sm text-muted">All teachers are up to date.</p>
+            <Link href="/progress" className="flex items-center gap-4 rounded-xl bg-surface-2 p-3 transition-colors hover:bg-surface-3">
+              <p className="tabular text-3xl font-bold leading-none">
+                {d.teaching.logged}
+                <span className="text-lg font-semibold text-muted">/{d.teaching.total}</span>
+              </p>
+              <div className="min-w-0 flex-1">
+                <ProgressBar value={d.teaching.total ? (d.teaching.logged / d.teaching.total) * 100 : 0} tone={d.teaching.logged === d.teaching.total ? "success" : "primary"} label="Logged today" />
+                <p className="mt-1.5 text-[13px] text-muted">class subjects logged today</p>
+              </div>
+            </Link>
+            <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
+              <Badge tone={d.tests.overdue ? "danger" : "neutral"} icon={Hourglass}>
+                {d.tests.total} tests unpublished{d.tests.overdue ? ` · ${d.tests.overdue} overdue` : ""}
+              </Badge>
+            </div>
           </CardBody>
-        )}
-      </Card>
+        </Card>
+        <Card>
+          <CardHeader title="Missed daily logs" description="Last 5 working days" action={<Link href="/progress?view=teachers" className="text-sm font-medium text-primary hover:underline">All teachers →</Link>} />
+          {d.teaching.teachers.length ? (
+            <ul className="divide-y divide-border border-t border-border">
+              {d.teaching.teachers.map((t) => (
+                <li key={t.teacherId}>
+                  <Link href={`/teachers/${t.teacherId}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                    <Avatar name={t.teacherName} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{t.teacherName}</p>
+                      <p className="text-[13px] text-muted">
+                        {t.missedDays ? `Missed ${t.missedDays} day${t.missedDays === 1 ? "" : "s"}` : "Some subjects missed"} · {t.pct ?? 0}% logged
+                      </p>
+                    </div>
+                    <DayStrip size="sm" days={t.days.map((x) => ({ date: x.date, state: x.logged >= x.expected ? "done" : x.logged ? "partial" : "missed" }))} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <CardBody>
+              <p className="text-sm text-muted">Every teacher wrote their logs on each of the last 5 working days.</p>
+            </CardBody>
+          )}
+        </Card>
+      </div>
       <p className="text-center text-xs text-muted">Updated {formatTime(d.asOf)}</p>
     </div>
   );

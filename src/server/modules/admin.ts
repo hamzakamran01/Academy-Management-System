@@ -1,16 +1,14 @@
 import "server-only";
 import { and, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/server/db";
-import { academy, activityLog, assessments, classes, classSubjects, classSubjectTeachers, lessonLogs, roleAssignments, students, users, weeklyPlans } from "@/server/db/schema";
+import { academy, activityLog, assessments, classSubjectTeachers, roleAssignments, students, users } from "@/server/db/schema";
 import type { Ctx } from "@/server/auth/session";
-import { addDays, eachDay, isWorkingDay, todayPkt, weekStart, type ISODate } from "@/lib/dates";
+import { addDays, todayPkt } from "@/lib/dates";
 import { resolveSettings, settingsSchema, type AcademySettings } from "@/lib/settings";
 import { isStaffAdmin } from "@/lib/roles";
 import { forbidden } from "@/server/http";
-import { requireCurrentYear } from "./academy";
 import { logActivity } from "./audit";
-import { progressDashboard } from "./progress";
-import { teacherClassSubjectIds } from "@/server/policy/scope";
+import { teacherConsistency } from "./teaching";
 
 // ─── Activity log (FR-ADM-01/02) ────────────────────────────────────────────
 export async function listActivity(ctx: Ctx, f: { q?: string; entityType?: string; from?: string; to?: string; limit?: number; offset?: number }) {
@@ -63,53 +61,47 @@ export async function updateAcademySettings(ctx: Ctx, input: { name: string; add
   });
 }
 
-// ─── Teacher progress summary (FR-TPR-12 / BR-TPR-15) ───────────────────────
-export async function teacherSummary(ctx: Ctx, teacherId: string, from: ISODate, to: ISODate) {
-  if (!isStaffAdmin(ctx.role) && ctx.userId !== teacherId) throw forbidden();
-  const year = await requireCurrentYear(ctx.academyId);
-  const csIds =
-    ctx.userId === teacherId && ctx.role === "teacher"
-      ? await teacherClassSubjectIds(ctx.userId, ctx.academyId)
-      : (
-          await db
-            .select({ id: classSubjectTeachers.classSubjectId })
-            .from(classSubjectTeachers)
-            .innerJoin(classSubjects, eq(classSubjects.id, classSubjectTeachers.classSubjectId))
-            .innerJoin(classes, eq(classes.id, classSubjects.classId))
-            .where(and(eq(classSubjectTeachers.teacherId, teacherId), isNull(classSubjectTeachers.toDate), eq(classes.academicYearId, year.id), isNull(classes.archivedAt)))
-        ).map((r) => r.id);
-  const end = to > todayPkt() ? todayPkt() : to;
-  const working = eachDay(from, end).filter((d) => isWorkingDay(year.calendar, d));
-  if (!csIds.length) return { subjects: 0, avgDifference: null, logDaysPct: null, plansOnTimePct: null, testsOnTimePct: null, workingDays: working.length };
+// ─── Teacher summary (daily logs + tests) ───────────────────────────────────
+export type TeacherSummary = {
+  subjects: number;
+  workingDays: number;
+  logDaysPct: number | null;
+  missedDays: number;
+  testsOnTimePct: number | null;
+  testsPublished: number;
+};
 
-  const [logs] = await db
-    .select({ n: sql<number>`count(distinct (${lessonLogs.classSubjectId}, ${lessonLogs.date}))::int` })
-    .from(lessonLogs)
-    .where(and(inArray(lessonLogs.classSubjectId, csIds), gte(lessonLogs.date, from), lte(lessonLogs.date, end), inArray(lessonLogs.date, working.length ? working : ["1900-01-01"])));
-  const weeks = [...new Set(working.map((d) => weekStart(d)))];
-  const [plans] = weeks.length
-    ? await db
-        .select({ onTime: sql<number>`count(*) filter (where ${weeklyPlans.status} = 'submitted' and not ${weeklyPlans.isLate})::int` })
-        .from(weeklyPlans)
-        .where(and(inArray(weeklyPlans.classSubjectId, csIds), inArray(weeklyPlans.weekStart, weeks)))
-    : [{ onTime: 0 }];
+/** Separate, plain numbers — no combined score. `days` = working days looked back (today excluded). */
+export async function teacherSummary(ctx: Ctx, teacherId: string, days = 20): Promise<TeacherSummary> {
+  if (!isStaffAdmin(ctx.role) && ctx.userId !== teacherId) throw forbidden();
+  const [c] = await teacherConsistency(ctx, { count: days, teacherId });
+  if (!c) return { subjects: 0, workingDays: 0, logDaysPct: null, missedDays: 0, testsOnTimePct: null, testsPublished: 0 };
+  const from = c.days[0]?.date ?? todayPkt();
+  const csIds = (
+    await db
+      .select({ id: classSubjectTeachers.classSubjectId })
+      .from(classSubjectTeachers)
+      .where(and(eq(classSubjectTeachers.teacherId, teacherId), isNull(classSubjectTeachers.toDate)))
+  ).map((r) => r.id);
   const testCutoff = addDays(todayPkt(), -3);
-  const [tests] = await db
-    .select({
-      due: sql<number>`count(*) filter (where ${assessments.date} <= ${testCutoff}::date)::int`,
-      onTime: sql<number>`count(*) filter (where ${assessments.date} <= ${testCutoff}::date and ${assessments.publishedAt} is not null and (${assessments.publishedAt} at time zone 'Asia/Karachi')::date <= ${assessments.date} + 3)::int`,
-    })
-    .from(assessments)
-    .where(and(inArray(assessments.classSubjectId, csIds), gte(assessments.date, from), lte(assessments.date, end)));
-  const progress = (await progressDashboard({ ...ctx, role: "super_admin" } as Ctx, { teacherId })).filter((r) => r.progress.difference != null);
-  const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+  const [tests] = csIds.length
+    ? await db
+        .select({
+          due: sql<number>`count(*) filter (where ${assessments.date} <= ${testCutoff}::date)::int`,
+          onTime: sql<number>`count(*) filter (where ${assessments.date} <= ${testCutoff}::date and ${assessments.publishedAt} is not null and (${assessments.publishedAt} at time zone 'Asia/Karachi')::date <= ${assessments.date} + 3)::int`,
+          published: sql<number>`count(*) filter (where ${assessments.publishedAt} is not null)::int`,
+        })
+        .from(assessments)
+        .where(and(inArray(assessments.classSubjectId, csIds), gte(assessments.date, from), lte(assessments.date, todayPkt())))
+    : [{ due: 0, onTime: 0, published: 0 }];
+  const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : null);
   return {
-    subjects: csIds.length,
-    workingDays: working.length,
-    avgDifference: progress.length ? Math.round((progress.reduce((n, r) => n + r.progress.difference!, 0) / progress.length) * 10) / 10 : null,
-    logDaysPct: pct(logs?.n ?? 0, csIds.length * working.length),
-    plansOnTimePct: pct(plans?.onTime ?? 0, csIds.length * weeks.length),
+    subjects: c.subjects,
+    workingDays: c.days.length,
+    logDaysPct: c.pct,
+    missedDays: c.missedDays,
     testsOnTimePct: pct(tests?.onTime ?? 0, tests?.due ?? 0),
+    testsPublished: tests?.published ?? 0,
   };
 }
 
@@ -131,8 +123,9 @@ export async function peopleStatus(ctx: Ctx) {
     .where(and(eq(activityLog.academyId, ctx.academyId), gte(activityLog.at, since)))
     .groupBy(activityLog.actorId);
   const actionCount = new Map(actions.map((a) => [a.actorId, a.n]));
-  const teachers = [];
-  for (const t of staff.filter((s) => s.role === "teacher")) teachers.push({ ...t, summary: await teacherSummary(ctx, t.id, from, to), actions: actionCount.get(t.id) ?? 0 });
+  const teachers: ((typeof staff)[number] & { summary: TeacherSummary; actions: number })[] = [];
+  const summaries = await Promise.all(staff.filter((s) => s.role === "teacher").map((t) => teacherSummary(ctx, t.id)));
+  staff.filter((s) => s.role === "teacher").forEach((t, i) => teachers.push({ ...t, summary: summaries[i]!, actions: actionCount.get(t.id) ?? 0 }));
   const [[active], [removed], [parentsTotal], [parentsIn]] = await Promise.all([
     db.select({ n: count() }).from(students).where(and(eq(students.academyId, ctx.academyId), eq(students.status, "active"))),
     db.select({ n: count() }).from(students).where(and(eq(students.academyId, ctx.academyId), eq(students.status, "removed"))),

@@ -223,6 +223,45 @@
   .stagger > :nth-child(11) { animation-delay: 255ms; }
   .stagger > :nth-child(n + 12) { animation-delay: 270ms; }
   .pop-in { animation: pop-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  /* Circular progress fills in from empty */
+  .ring-progress { animation: ring-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both; }
+
+  /* Mascot: gentle bob, flicker, blink */
+  .mascot-bob { animation: mascot-bob 2.4s ease-in-out infinite; }
+  .mascot-flame { transform-origin: 60px 100px; animation: mascot-flicker 1.8s ease-in-out infinite; }
+  .mascot-eyes { transform-origin: 60px 66px; animation: mascot-blink 4.2s infinite; }
+  .mascot-glow { transform-origin: 60px 58px; animation: mascot-glow 1.8s ease-in-out infinite; }
+  .mascot-sparkle { animation: fade-in 300ms 200ms both; }
+
+  /* Celebration overlay */
+  .celebrate-backdrop { animation: fade-in 160ms ease-out both; }
+  .celebrate-card { animation: pop-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .celebrate-dot { animation: burst 820ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both; }
+}
+@keyframes ring-fill {
+  from { stroke-dashoffset: var(--ring-c); }
+}
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes mascot-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  30% { transform: scale(1.02, 0.98) rotate(-1.2deg); }
+  65% { transform: scale(0.99, 1.02) rotate(1deg); }
+}
+@keyframes mascot-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+@keyframes mascot-glow {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+@keyframes burst {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.4); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

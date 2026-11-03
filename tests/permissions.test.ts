@@ -7,7 +7,7 @@ import { listActivity } from "@/server/modules/admin";
 import { createAnnouncement, listAnnouncements } from "@/server/modules/announcements";
 import { classFeeList, financeSummary, generateMonthRows, setClassFee, studentFeeRows } from "@/server/modules/fees";
 import { listClasses } from "@/server/modules/org";
-import { parentProgress } from "@/server/modules/progress";
+import { parentClassLog as parentProgress } from "@/server/modules/teaching";
 import { buildReport } from "@/server/modules/reports";
 import { setSalary } from "@/server/modules/salaries";
 import { getStudentProfile, listStudents } from "@/server/modules/students";

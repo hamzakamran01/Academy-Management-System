@@ -36,7 +36,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
     { href: `/students?classId=${id}`, label: "Students", icon: Users, show: true },
     { href: `/results?classId=${id}`, label: "Results", icon: GraduationCap, show: true },
     { href: `/fees/class/${id}`, label: "Fees", icon: Wallet, show: isStaffAdmin(ctx.role) },
-    { href: `/progress?classId=${id}`, label: "Progress", icon: ClipboardList, show: true },
+    { href: `/progress?classId=${id}`, label: "Teaching log", icon: ClipboardList, show: isStaffAdmin(ctx.role) },
   ].filter((q) => q.show);
 
   return (
@@ -85,21 +85,34 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
         ) : (
           <ul className="divide-y divide-border border-t border-border">
             {cls.subjects.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">
-                    {s.subjectName}
-                    {ctx.role === "teacher" && s.mine && <Badge tone="primary" className="ms-2">You teach</Badge>}
-                  </p>
-                  <p className="text-[13px] text-muted">
-                    {s.studentCount} student{s.studentCount === 1 ? "" : "s"}
-                    {!admin && ` · ${s.teacherName ?? "No teacher"}`}
-                  </p>
+              <li key={s.id} className="px-4 py-3 sm:flex sm:items-center sm:gap-3">
+                {/* Phones: subject on its own line, teacher picker full-width below — nothing overlaps. */}
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-sm font-bold text-primary-soft-fg" aria-hidden>
+                    {s.subjectName.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex min-w-0 items-center gap-2 font-medium">
+                      <span className="truncate">{s.subjectName}</span>
+                      {ctx.role === "teacher" && s.mine && <Badge tone="primary" className="shrink-0">You teach</Badge>}
+                    </p>
+                    <p className="truncate text-[13px] text-muted">
+                      {s.studentCount} student{s.studentCount === 1 ? "" : "s"}
+                      {!admin && ` · ${s.teacherName ?? "No teacher"}`}
+                    </p>
+                  </div>
+                  {admin && (
+                    <div className="sm:hidden">
+                      <SubjectRowMenu classSubjectId={s.id} name={s.subjectName} />
+                    </div>
+                  )}
                 </div>
                 {admin && (
-                  <div className="flex items-center gap-1">
+                  <div className="mt-2.5 flex items-center gap-1 ps-12 sm:mt-0 sm:w-64 sm:shrink-0 sm:ps-0">
                     <TeacherPicker classSubjectId={s.id} teacherId={s.teacherId} teachers={teachers} />
-                    <SubjectRowMenu classSubjectId={s.id} name={s.subjectName} />
+                    <div className="max-sm:hidden">
+                      <SubjectRowMenu classSubjectId={s.id} name={s.subjectName} />
+                    </div>
                   </div>
                 )}
               </li>

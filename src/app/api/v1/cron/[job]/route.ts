@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { safeEqual } from "@/server/auth/crypto";
-import { jobCleanup, jobLessonLogReminder, jobMonthlyRows, jobResultsReminder, jobWeeklyPlanReminder, tick } from "@/server/modules/jobs";
+import { jobCleanup, jobLessonLogReminder, jobMonthlyRows, jobResultsReminder, tick } from "@/server/modules/jobs";
 import { sendDailySummaries, sendPendingPushes } from "@/server/modules/push";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,6 @@ const JOBS: Record<string, () => Promise<unknown>> = {
   "push-sender": () => sendPendingPushes(),
   "monthly-rows": () => jobMonthlyRows(),
   "lesson-log-reminder": jobLessonLogReminder,
-  "weekly-plan-reminder": jobWeeklyPlanReminder,
   "results-reminder": jobResultsReminder,
   "parent-daily-summary": sendDailySummaries,
   cleanup: jobCleanup,

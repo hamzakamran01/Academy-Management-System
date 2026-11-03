@@ -7,7 +7,7 @@ import { fmtMark } from "@/lib/grades";
 import { badRequest, forbidden } from "@/server/http";
 import { getAcademy } from "./academy";
 import { classFeeList, financeSummary, unpaidMultiple } from "./fees";
-import { progressDashboard } from "./progress";
+import { teacherConsistency } from "./teaching";
 import { subjectResultSheet } from "./results";
 import { salariesOverview } from "./salaries";
 import { listStudents } from "./students";
@@ -22,7 +22,7 @@ export const REPORTS: { key: ReportKey; title: string; description: string; role
   { key: "fee-status", title: "Fee status by class", description: "Paid / unpaid per student for a month", roles: ["super_admin", "admin"], needs: ["class", "month"] },
   { key: "unpaid", title: "Unpaid 2+ months", description: "Students to follow up with months owed", roles: ["super_admin", "admin"], needs: [] },
   { key: "result-sheet", title: "Result sheet", description: "Students × published tests for one subject", roles: ["super_admin", "admin", "teacher"], needs: ["classSubject"] },
-  { key: "teaching-progress", title: "Teaching progress", description: "Coverage vs expected for every class subject", roles: ["super_admin", "admin"], needs: [] },
+  { key: "teaching-progress", title: "Daily log record", description: "Logs written per teacher over the last 20 working days", roles: ["super_admin", "admin"], needs: [] },
   { key: "finance", title: "Finance summary", description: "Expected, recovered and pending by class", roles: ["super_admin"], needs: ["month"] },
   { key: "salaries", title: "Salaries", description: "Salary bill and paid status for a month", roles: ["super_admin"], needs: ["month"] },
 ];
@@ -75,12 +75,12 @@ export async function buildReport(ctx: Ctx, key: ReportKey, p: Params): Promise<
       };
     }
     case "teaching-progress": {
-      const rows = await progressDashboard(ctx);
+      const rows = await teacherConsistency(ctx, { count: 20 });
       return {
-        title: "Teaching progress",
-        subtitle: `As of ${formatDate(new Date().toISOString().slice(0, 10))}`,
-        columns: [{ header: "Class", width: 22 }, { header: "Subject", width: 18 }, { header: "Teacher", width: 20 }, { header: "Covered %", width: 11 }, { header: "Expected %", width: 11 }, { header: "Status", width: 12 }, { header: "Remaining topics", width: 10 }, { header: "Last log", width: 14 }, { header: "Plan this week", width: 12 }],
-        rows: rows.map((r) => [r.className, r.subjectName, r.teacherName, r.progress.coverage, r.progress.expected, r.progress.status.replace("_", " "), r.progress.remainingTopics, r.lastLog ? formatDate(r.lastLog) : "never", r.planStatus ?? "missing"]),
+        title: "Daily log record",
+        subtitle: `Last 20 working days · as of ${formatDate(new Date().toISOString().slice(0, 10))}`,
+        columns: [{ header: "Teacher", width: 24 }, { header: "Subjects", width: 10 }, { header: "Logs written", width: 13 }, { header: "Logs expected", width: 14 }, { header: "Logged %", width: 10 }, { header: "Days with no log", width: 15 }, { header: "Last log", width: 14 }],
+        rows: rows.map((r) => [r.teacherName, r.subjects, r.logged, r.expected, r.pct, r.missedDays, r.lastLog ? formatDate(r.lastLog) : "never"]),
       };
     }
     case "finance": {

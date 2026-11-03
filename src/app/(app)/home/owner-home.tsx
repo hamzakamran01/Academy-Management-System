@@ -1,8 +1,9 @@
-import { Banknote, CircleDollarSign, ClipboardCheck, Hourglass, ServerCog, TrendingUp, UserMinus, UserPlus, Users } from "lucide-react";
+import { Banknote, CircleDollarSign, Hourglass, ServerCog, TrendingUp, UserMinus, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, SectionTitle } from "@/components/ui/card";
-import { Avatar, StatTile } from "@/components/ui/data";
+import { Avatar, ProgressBar, StatTile } from "@/components/ui/data";
+import { DayStrip } from "@/components/teaching-log";
 import { formatMoney, formatMoneyCompact, formatMonth, formatPercent, formatRelative, formatTime } from "@/lib/format";
 import type { ownerDashboard } from "@/server/modules/dashboards";
 
@@ -49,15 +50,23 @@ export function OwnerHome({ d }: { d: D }) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Teaching progress" description={`${d.teaching.total} class subjects`} action={<Link href="/progress" className="text-sm font-medium text-primary hover:underline">Open →</Link>} />
+          <CardHeader
+            title="Teaching log"
+            description={d.teaching.isWorkingDay ? "Daily logs written by teachers today" : "No classes today"}
+            action={<Link href="/progress" className="text-sm font-medium text-primary hover:underline">Open →</Link>}
+          />
           <CardBody>
-            <div className="grid grid-cols-3 gap-2">
-              <Count label="On track" n={d.teaching.statusCounts.on_track} cls="bg-success-soft text-success-fg" href="/progress?status=on_track" />
-              <Count label="At risk" n={d.teaching.statusCounts.at_risk} cls="bg-warning-soft text-warning-fg" href="/progress?status=at_risk" />
-              <Count label="Behind" n={d.teaching.statusCounts.behind} cls="bg-danger-soft text-danger-fg" href="/progress?status=behind" />
-            </div>
+            <Link href="/progress" className="flex items-center gap-4 rounded-xl bg-surface-2 p-3 transition-colors hover:bg-surface-3">
+              <p className="tabular text-3xl font-bold leading-none">
+                {d.teaching.logged}
+                <span className="text-lg font-semibold text-muted">/{d.teaching.total}</span>
+              </p>
+              <div className="min-w-0 flex-1">
+                <ProgressBar value={d.teaching.total ? (d.teaching.logged / d.teaching.total) * 100 : 0} tone={d.teaching.logged === d.teaching.total ? "success" : "primary"} label="Logged today" />
+                <p className="mt-1.5 text-[13px] text-muted">class subjects logged today</p>
+              </div>
+            </Link>
             <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
-              <Badge tone={d.teaching.missingPlans ? "warning" : "success"} icon={ClipboardCheck}>{d.teaching.missingPlans} plans not submitted</Badge>
               <Badge tone={d.tests.overdue ? "danger" : "neutral"} icon={Hourglass}>
                 {d.tests.total} tests unpublished{d.tests.overdue ? ` · ${d.tests.overdue} overdue` : ""}
               </Badge>
@@ -66,24 +75,27 @@ export function OwnerHome({ d }: { d: D }) {
         </Card>
 
         <Card>
-          <CardHeader title="Teachers needing attention" action={<Link href="/people-status" className="text-sm font-medium text-primary hover:underline">People →</Link>} />
+          <CardHeader title="Missed daily logs" description="Last 5 working days" action={<Link href="/progress?view=teachers" className="text-sm font-medium text-primary hover:underline">All teachers →</Link>} />
           {d.teaching.teachers.length ? (
             <ul className="divide-y divide-border border-t border-border">
               {d.teaching.teachers.map((t) => (
                 <li key={t.teacherId}>
-                  <Link href={`/teachers/${t.teacherId}`} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2">
+                  <Link href={`/teachers/${t.teacherId}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2">
                     <Avatar name={t.teacherName} size="sm" />
-                    <div className="min-w-0">
-                      <p className="font-medium">{t.teacherName}</p>
-                      <p className="line-clamp-2 text-[13px] text-muted">{t.reasons.join(" · ")}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{t.teacherName}</p>
+                      <p className="text-[13px] text-muted">
+                        {t.missedDays ? `Missed ${t.missedDays} day${t.missedDays === 1 ? "" : "s"}` : "Some subjects missed"} · {t.pct ?? 0}% logged
+                      </p>
                     </div>
+                    <DayStrip size="sm" days={t.days.map((x) => ({ date: x.date, state: x.logged >= x.expected ? "done" : x.logged ? "partial" : "missed" }))} />
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
             <CardBody>
-              <p className="text-sm text-muted">Everyone is on top of plans and lesson logs. 🎉</p>
+              <p className="text-sm text-muted">Every teacher wrote their logs on each of the last 5 working days.</p>
             </CardBody>
           )}
         </Card>
@@ -106,15 +118,6 @@ export function OwnerHome({ d }: { d: D }) {
       </Card>
       <p className="text-center text-xs text-muted">Updated {formatTime(d.asOf)}</p>
     </div>
-  );
-}
-
-function Count({ label, n, cls, href }: { label: string; n: number; cls: string; href: string }) {
-  return (
-    <Link href={href} className={`rounded-xl px-2 py-2.5 text-center ${cls}`}>
-      <p className="tabular text-xl font-bold">{n}</p>
-      <p className="text-xs font-semibold">{label}</p>
-    </Link>
   );
 }
 

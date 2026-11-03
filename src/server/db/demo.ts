@@ -181,7 +181,7 @@ export async function seedDemo(db: Database): Promise<void> {
       .values([
         { academyId, title: "Iqbal Day holiday — 9 November", body: "The academy will remain closed on Monday, 9 November for Iqbal Day. Classes resume on Tuesday.", audienceType: "all", pinned: true, authorId: owner.id, publishedAt: new Date(Date.now() - 2 * 3600_000) },
         { academyId, title: "Monthly tests next week", body: "Monthly tests for all classes start next Monday. Please make sure your child revises chapters covered this month.", audienceType: "parents", authorId: owner.id, publishedAt: new Date(Date.now() - 26 * 3600_000) },
-        { academyId, title: "Staff meeting on Saturday", body: "All teachers please join the staff meeting at 1:30 pm on Saturday to review weekly plans and syllabus pace.", audienceType: "teachers", authorId: owner.id, publishedAt: new Date(Date.now() - 50 * 3600_000) },
+        { academyId, title: "Staff meeting on Saturday", body: "All teachers please join the staff meeting at 1:30 pm on Saturday. Please keep writing your daily class logs.", audienceType: "teachers", authorId: owner.id, publishedAt: new Date(Date.now() - 50 * 3600_000) },
       ])
       .returning();
     const raza = (await tx.select({ id: s.users.id }).from(s.users).where(eq(s.users.phone, "+923000000004")))[0]!;
@@ -189,7 +189,7 @@ export async function seedDemo(db: Database): Promise<void> {
       { userId: raza.id, role: "parent", type: "announcement", title: "Iqbal Day holiday — 9 November", body: "The academy will remain closed on Monday, 9 November for Iqbal Day.", link: `/announcements#a-${hol!.id}`, pushCancelledAt: new Date() },
       { userId: raza.id, role: "parent", type: "homework.posted", title: "English homework", body: "English: exercise questions 1–5 — due in 3 days", link: "/homework", pushCancelledAt: new Date(), createdAt: new Date(Date.now() - 5 * 3600_000) },
       { userId: raza.id, role: "parent", type: "fee.paid", title: "October fee received", body: "Ali Raza's fee for October is marked Paid.", link: "/fees", readAt: new Date(), pushCancelledAt: new Date(), createdAt: new Date(Date.now() - 30 * 86_400_000) },
-      { userId: ayesha.id, role: "teacher", type: "plan.comment", title: "New comment on your weekly plan", body: "Hamza Kamran: Great pace in 9-A — please add a revision day before the monthly test.", link: "/plans", pushCancelledAt: new Date() },
+      { userId: ayesha.id, role: "teacher", type: "reminder.lesson_log", title: "Write today's logs", body: "Physics · Grade 9 – A", link: "/home", pushCancelledAt: new Date() },
       { userId: owner.id, role: "super_admin", type: "system.monthly_rows", title: "Monthly lists created", body: "Fee rows and salary rows for this month were created automatically.", link: "/finance", pushCancelledAt: new Date() },
     ]);
     await tx.insert(s.activityLog).values([
@@ -260,7 +260,7 @@ const SYLLABI: Record<string, string[][]> = {
   "Computer Science": [["Problem solving", "Algorithms", "Flowcharts"], ["Binary systems", "Number systems", "Conversions"], ["Networks", "Topologies", "Protocols"], ["Data & privacy", "Ethics", "Security"]],
 };
 
-/** Syllabus, lesson logs, weekly plans, homework and a couple of published tests per class-subject. */
+/** Daily logs, homework and a couple of published tests per class-subject. */
 async function seedTeaching(
   tx: Database,
   o: { academyId: string; startYear: number; today: string; rand: () => number; ownerId: string },
@@ -279,56 +279,36 @@ async function seedTeaching(
   };
   const workingDays: string[] = [];
   for (let d = year.startDate; d <= today; d = addDays(d, 1)) if (isWorking(d)) workingDays.push(d);
-  const monday = addDays(today, 1 - (new Date(`${today}T00:00:00Z`).getUTCDay() || 7));
-  const paces = [1.04, 0.97, 0.9, 1.08, 0.99, 0.84, 1.02, 0.7, 1.0];
+  // How reliably each teacher writes the daily log (index by class-subject).
+  const reliability = [1, 0.95, 0.85, 1, 0.9, 0.7, 1, 0.6, 0.95];
+  const reasons = ["test", "revision", "event"] as const;
 
   for (const [k, cs] of css.entries()) {
     const chapterDefs = SYLLABI[cs.subjectName] ?? SYLLABI.Physics!;
-    const [book] = await tx.insert(s.books).values({ classSubjectId: cs.id, title: `${cs.subjectName} — Textbook`, order: 0 }).returning();
-    const allTopics: { id: string; size: number; chapterIdx: number }[] = [];
-    for (const [ci, def] of chapterDefs.entries()) {
-      // Spread chapter targets across the year (skipping the summer break)
-      const target = addDays(year.startDate, Math.round(((ci + 1) / chapterDefs.length) * 330));
-      const [ch] = await tx.insert(s.chapters).values({ bookId: book!.id, title: `Ch ${ci + 1} · ${def[0]}`, order: ci, targetDate: target }).returning();
-      const ts = await tx
-        .insert(s.topics)
-        .values(def.slice(1).map((title, ti) => ({ chapterId: ch!.id, title, order: ti, size: 1 + Math.floor(rand() * 3) })))
-        .returning();
-      ts.forEach((t) => allTopics.push({ id: t.id, size: t.size, chapterIdx: ci }));
-    }
-
-    // Expected share by today ≈ elapsed working days; each subject runs at its own pace.
-    const elapsed = Math.min(1, (Date.parse(today) - Date.parse(year.startDate)) / 86_400_000 / 330);
-    const pace = paces[k % paces.length]!;
-    const doneCount = Math.min(allTopics.length - 1, Math.max(1, Math.round(allTopics.length * elapsed * pace)));
-    const logDays = workingDays.slice(-Math.max(doneCount * 2, 10));
-    for (let i = 0; i < doneCount; i++) {
-      const date = logDays[Math.min(logDays.length - 1, Math.floor((i / doneCount) * logDays.length))]!;
+    const lessons = chapterDefs.flatMap((def, ci) => def.slice(1).map((t) => `Ch ${ci + 1} · ${def[0]} — ${t}`));
+    const rel = reliability[k % reliability.length]!;
+    // Last 15 working days; today only for about half of the subjects (the day is still going).
+    const days = workingDays.slice(-16).filter((d) => d !== today || k % 2 === 0);
+    let topic = Math.floor(rand() * 4);
+    for (const [di, date] of days.entries()) {
+      if (date !== today && rand() > rel) continue; // missed day
+      const noClass = di % 11 === 7 ? reasons[k % reasons.length]! : null;
+      const taught = noClass ? null : `${lessons[topic % lessons.length]}${rand() < 0.4 ? ". Solved examples on the board." : ""}`;
+      if (!noClass) topic++;
       const [log] = await tx
         .insert(s.lessonLogs)
-        .values({ classSubjectId: cs.id, teacherId: cs.teacherId, date })
+        .values({ classSubjectId: cs.id, teacherId: cs.teacherId, date, note: taught, noLessonReason: noClass })
         .onConflictDoNothing()
         .returning();
-      const logId = log?.id ?? (await tx.select({ id: s.lessonLogs.id }).from(s.lessonLogs).where(and(eq(s.lessonLogs.classSubjectId, cs.id), eq(s.lessonLogs.date, date))))[0]!.id;
-      await tx.insert(s.lessonLogTopics).values({ lessonLogId: logId, topicId: allTopics[i]!.id, status: "completed" });
-      await tx.insert(s.topicProgress).values({ classSubjectId: cs.id, topicId: allTopics[i]!.id, status: "completed", completedOn: date });
-    }
-    // One topic in progress
-    const started = allTopics[doneCount];
-    if (started) await tx.insert(s.topicProgress).values({ classSubjectId: cs.id, topicId: started.id, status: "started" });
-
-    // This week's plan for most subjects
-    if (k % 4 !== 3) {
-      const [plan] = await tx
-        .insert(s.weeklyPlans)
-        .values({ classSubjectId: cs.id, teacherId: cs.teacherId, weekStart: monday, status: k % 5 === 4 ? "draft" : "submitted", submittedAt: k % 5 === 4 ? null : new Date(`${monday}T04:30:00Z`), note: "Revise previous chapter on Saturday." })
-        .returning();
-      const next = allTopics.slice(doneCount, doneCount + 3);
-      if (next.length) await tx.insert(s.weeklyPlanTopics).values(next.map((t) => ({ weeklyPlanId: plan!.id, topicId: t.id })));
-    }
-    // Homework due soon
-    if (k % 2 === 0) {
-      await tx.insert(s.homework).values({ classSubjectId: cs.id, title: `${cs.subjectName}: exercise questions 1–5`, details: "Write answers in your notebook.", dueDate: addDays(today, 1 + (k % 3)), createdBy: cs.teacherId });
+      if (log && !noClass && (di + k) % 3 === 0) {
+        await tx.insert(s.homework).values({
+          classSubjectId: cs.id,
+          lessonLogId: log.id,
+          title: rand() < 0.5 ? "Exercise questions 1–5 in the notebook" : "Learn the definitions and do the end-of-section questions",
+          dueDate: addDays(date, 1),
+          createdBy: cs.teacherId,
+        });
+      }
     }
 
     // Two published weekly tests

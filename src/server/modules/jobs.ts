@@ -17,9 +17,8 @@ import {
   students,
   subjects,
   users,
-  weeklyPlans,
 } from "@/server/db/schema";
-import { addDays, isWorkingDay, isoWeekday, monthStart, todayPkt, weekStart } from "@/lib/dates";
+import { addDays, isWorkingDay, monthStart, todayPkt } from "@/lib/dates";
 import { formatMonth, TZ } from "@/lib/format";
 import { getAcademy, getCurrentYear } from "./academy";
 import { generateMonthRows } from "./fees";
@@ -126,39 +125,14 @@ export async function jobLessonLogReminder() {
         userId: teacherId,
         role: "teacher",
         type: "reminder.lesson_log",
-        title: "Log today's lessons",
+        title: "Write today's class log",
         body: list.map((l) => `${l.subjectName} · ${l.className}`).join(", "),
-        link: list.length === 1 ? `/lesson/${list[0]!.csId}` : "/progress",
+        link: list.length === 1 ? `/lesson/${list[0]!.csId}` : "/home",
       });
     }
   }
   await queueNotifications(db, notes);
   return { reminded: notes.length };
-}
-
-/** weekly-plan-reminder (Monday at deadline): teachers with missing plans (FR-TPR-13). */
-export async function jobWeeklyPlanReminder() {
-  const ws = weekStart(todayPkt());
-  const rows = await db
-    .select({ teacherId: classSubjectTeachers.teacherId, subjectName: subjects.name, className: classes.name })
-    .from(classSubjectTeachers)
-    .innerJoin(classSubjects, eq(classSubjects.id, classSubjectTeachers.classSubjectId))
-    .innerJoin(classes, eq(classes.id, classSubjects.classId))
-    .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId))
-    .where(
-      and(
-        isNull(classSubjectTeachers.toDate),
-        isNull(classes.archivedAt),
-        sql`not exists (select 1 from ${weeklyPlans} p where p.class_subject_id = ${classSubjects.id} and p.week_start = ${ws}::date and p.status = 'submitted')`,
-      ),
-    );
-  const by = new Map<string, string[]>();
-  for (const r of rows) by.set(r.teacherId, [...(by.get(r.teacherId) ?? []), `${r.subjectName} · ${r.className}`]);
-  await queueNotifications(
-    db,
-    [...by].map(([userId, list]) => ({ userId, role: "teacher" as const, type: "reminder.weekly_plan", title: "Weekly plan not submitted", body: list.join(", "), link: "/plans" })),
-  );
-  return { reminded: by.size };
 }
 
 /** results-reminder (daily 10:00): drafts dated ≥ 3 days ago (FR-RES-11). */
@@ -237,9 +211,6 @@ export async function tick() {
     const year = await getCurrentYear(a.id);
     const working = year ? isWorkingDay(year.calendar, today) : false;
     if (working && at(now, settings.lessonLogReminderTime)) results.push(await runOnce("lesson-log-reminder", today, jobLessonLogReminder));
-    if (isoWeekday(today) === settings.weeklyPlanDeadline.weekday && at(now, settings.weeklyPlanDeadline.time)) {
-      results.push(await runOnce("weekly-plan-reminder", today, jobWeeklyPlanReminder));
-    }
     if (settings.feeReminderEnabled && Number(today.slice(8)) === settings.feeReminderDay && at(now, "10:00")) {
       results.push(await runOnce(`fee-reminder:${a.id}`, today, () => jobFeeReminder(a.id)));
     }

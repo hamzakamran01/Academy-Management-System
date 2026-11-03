@@ -23,7 +23,7 @@ import { makeAcademy, makeClass, makeStudent, makeUser } from "./fixtures";
  */
 describe("fees", () => {
   const month = monthStart(todayPkt());
-  let owner: Ctx, admin: Ctx, teacher: Ctx, outsider: Ctx;
+  let owner: Ctx, admin: Ctx, teacher: Ctx;
   let classId: string, otherClassId: string;
   const ids: string[] = [];
   let aliId = "";
@@ -34,7 +34,7 @@ describe("fees", () => {
     owner = await makeUser(academyId, "super_admin", "Owner");
     admin = await makeUser(academyId, "admin", "Admin");
     teacher = await makeUser(academyId, "teacher", "Class Teacher");
-    outsider = await makeUser(academyId, "teacher", "Other Teacher");
+
     classId = (await makeClass(academyId, yearId, "9-A", { fee: 6000, setBy: owner.userId })).id;
     otherClassId = (await makeClass(academyId, yearId, "9-B", { fee: 6000, setBy: owner.userId })).id;
 

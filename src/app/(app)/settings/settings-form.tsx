@@ -5,13 +5,12 @@ import { useState } from "react";
 import { StickyActions } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import type { AcademySettings } from "@/lib/settings";
 import { useMutation } from "@/lib/use-mutation";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** FR-ADM-03 / FR-ORG-01 — Super Admin settings. */
 export function SettingsForm({ initial }: { initial: { name: string; address: string | null; phone: string | null; settings: AcademySettings } }) {
@@ -65,26 +64,9 @@ export function SettingsForm({ initial }: { initial: { name: string; address: st
       </Card>
 
       <Card>
-        <CardHeader title="Teaching progress" />
-        <CardBody className="space-y-4">
-          <Toggle label="Teachers can edit their syllabus" on={s.teacherCanEditSyllabus} onChange={(v) => set("teacherCanEditSyllabus", v)} />
-          <Toggle label="Show On track / Behind to parents" on={s.showProgressStatusToParents} onChange={(v) => set("showProgressStatusToParents", v)} />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Plan due day">
-              {(p) => (
-                <Select {...p} value={s.weeklyPlanDeadline.weekday} onChange={(e) => set("weeklyPlanDeadline", { ...s.weeklyPlanDeadline, weekday: Number(e.target.value) })}>
-                  {WEEKDAYS.map((d, i) => (
-                    <option key={d} value={i + 1}>{d}</option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Plan due time">{(p) => <Input {...p} type="time" value={s.weeklyPlanDeadline.time} onChange={(e) => set("weeklyPlanDeadline", { ...s.weeklyPlanDeadline, time: e.target.value })} />}</Field>
-            <Field label="Lesson-log reminder">{(p) => <Input {...p} type="time" value={s.lessonLogReminderTime} onChange={(e) => set("lessonLogReminderTime", e.target.value)} />}</Field>
-            <div />
-            <Field label="At risk below expected by" hint="percentage points">{(p) => <Input {...p} type="number" min={0} max={50} value={s.progressThresholds.atRisk} onChange={(e) => set("progressThresholds", { ...s.progressThresholds, atRisk: Number(e.target.value) })} />}</Field>
-            <Field label="Behind below expected by" hint="percentage points">{(p) => <Input {...p} type="number" min={0} max={100} value={s.progressThresholds.behind} onChange={(e) => set("progressThresholds", { ...s.progressThresholds, behind: Number(e.target.value) })} />}</Field>
-          </div>
+        <CardHeader title="Daily teaching log" description="Teachers get a reminder if a class hasn't been logged by this time" />
+        <CardBody>
+          <Field label="Reminder time">{(p) => <Input {...p} type="time" className="max-w-40" value={s.lessonLogReminderTime} onChange={(e) => set("lessonLogReminderTime", e.target.value)} />}</Field>
         </CardBody>
       </Card>
 

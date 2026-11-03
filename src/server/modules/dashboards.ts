@@ -3,12 +3,12 @@ import { and, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { activityLog, assessments, classes, classSubjects, jobRuns, notifications, students, subjects } from "@/server/db/schema";
 import type { Ctx } from "@/server/auth/session";
-import { addDays, monthStart, todayPkt, weekStart } from "@/lib/dates";
+import { addDays, monthStart, todayPkt } from "@/lib/dates";
 import { forbidden } from "@/server/http";
 import { teacherClassSubjectIds } from "@/server/policy/scope";
 import { listAnnouncements } from "./announcements";
 import { feeOverview, financeSummary, parentFees } from "./fees";
-import { myTeachingToday, parentProgress, progressDashboard } from "./progress";
+import { parentClassLog, teacherConsistency, teacherToday, teachingDay } from "./teaching";
 import { studentResults } from "./results";
 import { netForMonth } from "./salaries";
 import { myChildren } from "./students";
@@ -32,27 +32,18 @@ async function pendingPublish(academyId: string) {
   return { total: r?.total ?? 0, overdue: r?.overdue ?? 0 };
 }
 
-/** Teachers needing attention: behind subjects, no plan this week, or no log in 3+ working days. */
-async function teachersNeedingAttention(ctx: Ctx) {
-  const rows = await progressDashboard(ctx);
-  const today = todayPkt();
-  const by = new Map<string, { teacherId: string; teacherName: string; reasons: Set<string> }>();
-  for (const r of rows) {
-    if (!r.teacherId) continue;
-    const e = by.get(r.teacherId) ?? { teacherId: r.teacherId, teacherName: r.teacherName ?? "", reasons: new Set<string>() };
-    if (r.progress.status === "behind") e.reasons.add(`${r.subjectName} ${r.className} behind`);
-    if (r.planStatus !== "submitted") e.reasons.add("Plan not submitted");
-    if (!r.lastLog || r.lastLog < addDays(today, -4)) e.reasons.add("No recent lesson log");
-    by.set(r.teacherId, e);
-  }
-  const statusCounts = { on_track: 0, at_risk: 0, behind: 0 };
-  for (const r of rows) if (r.progress.status in statusCounts) statusCounts[r.progress.status as keyof typeof statusCounts]++;
+/** Daily-log picture for the office: today's count + teachers who missed days recently. */
+async function teachingSnapshot(ctx: Ctx) {
+  const [day, consistency] = await Promise.all([teachingDay(ctx, todayPkt()), teacherConsistency(ctx, { count: 5 })]);
   return {
-    statusCounts,
-    teachers: [...by.values()].filter((t) => t.reasons.size).map((t) => ({ ...t, reasons: [...t.reasons] })).slice(0, 8),
-    missingPlans: rows.filter((r) => r.planStatus !== "submitted").length,
-    noLogToday: rows.filter((r) => r.lastLog !== today).length,
-    total: rows.length,
+    isWorkingDay: day.isWorkingDay,
+    logged: day.logged,
+    total: day.total,
+    // Anyone who missed at least one of the last 5 working days, worst first.
+    teachers: consistency
+      .filter((t) => t.missedDays > 0 || (t.pct ?? 100) < 100)
+      .slice(0, 6)
+      .map((t) => ({ teacherId: t.teacherId, teacherName: t.teacherName, pct: t.pct, missedDays: t.missedDays, lastLog: t.lastLog, days: t.days })),
   };
 }
 
@@ -64,7 +55,7 @@ export async function ownerDashboard(ctx: Ctx) {
     studentCounts(ctx.academyId),
     financeSummary(ctx, month),
     netForMonth(ctx, month),
-    teachersNeedingAttention(ctx),
+    teachingSnapshot(ctx),
     pendingPublish(ctx.academyId),
     systemHealth(),
   ]);
@@ -75,18 +66,16 @@ export async function ownerDashboard(ctx: Ctx) {
 export async function adminDashboard(ctx: Ctx) {
   if (ctx.role !== "admin") throw forbidden();
   const month = monthStart(todayPkt());
-  const [stu, fees, teach, pend] = await Promise.all([studentCounts(ctx.academyId), feeOverview(ctx, month), teachersNeedingAttention(ctx), pendingPublish(ctx.academyId)]);
+  const [stu, fees, teach, pend] = await Promise.all([studentCounts(ctx.academyId), feeOverview(ctx, month), teachingSnapshot(ctx), pendingPublish(ctx.academyId)]);
   return { asOf: new Date(), month, students: stu, fees: fees.totals, feesGenerated: fees.generated, teaching: teach, tests: pend };
 }
 
 /** FR-DSH-03 — Teacher "Today". */
 export async function teacherDashboard(ctx: Ctx) {
   if (ctx.role !== "teacher") throw forbidden();
-  const today = todayPkt();
   const csIds = await teacherClassSubjectIds(ctx.userId, ctx.academyId);
-  const [subjectsToday, progress, drafts] = await Promise.all([
-    myTeachingToday(ctx),
-    progressDashboard(ctx),
+  const [log, drafts] = await Promise.all([
+    teacherToday(ctx),
     csIds.length
       ? db
           .select({ id: assessments.id, title: assessments.title, date: assessments.date, subjectName: subjects.name, className: classes.name })
@@ -98,14 +87,7 @@ export async function teacherDashboard(ctx: Ctx) {
           .orderBy(assessments.date)
       : Promise.resolve([]),
   ]);
-  const ws = weekStart(today);
-  const plansDue = subjectsToday.filter((s) => s.planStatus !== "submitted");
-  return {
-    today,
-    weekStart: ws,
-    subjects: subjectsToday.map((s) => ({ ...s, progress: progress.find((p) => p.id === s.id)?.progress ?? null })),
-    pending: { plansDue, logsMissing: subjectsToday.filter((s) => !s.loggedToday), drafts },
-  };
+  return { log, drafts };
 }
 
 /** FR-DSH-04 — Parent home per child. */
@@ -115,7 +97,7 @@ export async function parentDashboard(ctx: Ctx, studentId?: string) {
   if (!kids.length) return { kids, child: null };
   const child = kids.find((k) => k.id === studentId) ?? kids[0]!;
   const month = monthStart(todayPkt());
-  const [results, fees, progress, ann] = await Promise.all([studentResults(ctx, child.id), parentFees(ctx), parentProgress(ctx, child.id), listAnnouncements(ctx, 3)]);
+  const [results, fees, classLog, ann] = await Promise.all([studentResults(ctx, child.id), parentFees(ctx), parentClassLog(ctx, child.id, 3), listAnnouncements(ctx, 3)]);
   const feeThisMonth = fees.find((f) => f.studentId === child.id && f.month === month) ?? null;
   const unpaidMonths = fees.filter((f) => f.studentId === child.id && f.status === "unpaid").length;
   return {
@@ -125,7 +107,8 @@ export async function parentDashboard(ctx: Ctx, studentId?: string) {
     overall: results.overall,
     feeThisMonth,
     unpaidMonths,
-    thisWeek: progress.subjects.filter((s) => s.thisWeek.length || s.homework.length),
+    // Most recent entry per subject from the last few days.
+    recentClass: classLog.subjects.filter((s) => s.entries.length).map((s) => ({ subjectName: s.subjectName, entry: s.entries[0]! })),
     announcement: ann[0] ?? null,
   };
 }

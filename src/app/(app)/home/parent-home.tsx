@@ -1,6 +1,7 @@
-import { CalendarClock, CheckCircle2, ChevronRight, CircleDot, GraduationCap, Hourglass, Megaphone, NotebookPen } from "lucide-react";
+import { ChevronRight, GraduationCap, Hourglass, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { ChildSwitcher } from "@/components/child-switcher";
+import { LogBody } from "@/components/teaching-log";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/data";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -83,33 +84,22 @@ export function ParentHome({ d }: { d: D }) {
       )}
 
       <Card>
-        <CardHeader title="This week" description="What was taught and homework" action={<Link href={`/progress?student=${d.child.id}`} className="text-sm font-medium text-primary hover:underline">All subjects →</Link>} />
-        {d.thisWeek.length ? (
+        <CardHeader title="In class lately" description="What was taught and the homework" action={<Link href={`/progress?student=${d.child.id}`} className="text-sm font-medium text-primary hover:underline">See all →</Link>} />
+        {d.recentClass.length ? (
           <ul className="divide-y divide-border border-t border-border">
-            {d.thisWeek.map((s) => (
-              <li key={s.classSubjectId} className="px-4 py-3">
-                <p className="font-semibold">{s.subjectName}</p>
-                <ul className="mt-1 space-y-1">
-                  {s.thisWeek.slice(-3).map((t, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      {t.status === "completed" ? <CheckCircle2 className="size-4 shrink-0 text-success" aria-label="Completed" /> : <CircleDot className="size-4 shrink-0 text-warning" aria-label="Started" />}
-                      <span className="truncate">{t.title}</span>
-                    </li>
-                  ))}
-                  {s.homework.slice(0, 2).map((h) => (
-                    <li key={h.id} className="flex items-center gap-2 text-sm text-info-fg">
-                      <NotebookPen className="size-4 shrink-0" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate">{h.title}</span>
-                      <Badge tone={h.dueDate <= today ? "warning" : "info"} icon={CalendarClock}>{h.dueDate === today ? "Today" : formatDate(h.dueDate).slice(0, 6)}</Badge>
-                    </li>
-                  ))}
-                </ul>
+            {d.recentClass.map((s) => (
+              <li key={s.subjectName} className="px-4 py-3">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate font-semibold">{s.subjectName}</p>
+                  <span className="shrink-0 text-xs text-muted">{s.entry.date === today ? "Today" : formatDate(s.entry.date).slice(0, 6)}</span>
+                </div>
+                <LogBody log={s.entry} clamp />
               </li>
             ))}
           </ul>
         ) : (
           <CardBody>
-            <p className="text-sm text-muted">Teachers haven't logged lessons this week yet.</p>
+            <p className="text-sm text-muted">Teachers haven't written any class logs in the last few days.</p>
           </CardBody>
         )}
       </Card>
