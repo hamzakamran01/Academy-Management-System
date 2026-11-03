@@ -19,7 +19,7 @@ type Table = { title: string; subtitle: string; columns: { header: string; width
 
 export const REPORTS: { key: ReportKey; title: string; description: string; roles: Ctx["role"][]; needs: ("class" | "month" | "classSubject")[] }[] = [
   { key: "students", title: "Student list", description: "Roll, reg. no., guardian and parent phone by class", roles: ["super_admin", "admin", "teacher"], needs: ["class"] },
-  { key: "fee-status", title: "Fee status by class", description: "Paid / unpaid per student for a month", roles: ["super_admin", "admin", "teacher"], needs: ["class", "month"] },
+  { key: "fee-status", title: "Fee status by class", description: "Paid / unpaid per student for a month", roles: ["super_admin", "admin"], needs: ["class", "month"] },
   { key: "unpaid", title: "Unpaid 2+ months", description: "Students to follow up with months owed", roles: ["super_admin", "admin"], needs: [] },
   { key: "result-sheet", title: "Result sheet", description: "Students × published tests for one subject", roles: ["super_admin", "admin", "teacher"], needs: ["classSubject"] },
   { key: "teaching-progress", title: "Teaching progress", description: "Coverage vs expected for every class subject", roles: ["super_admin", "admin"], needs: [] },

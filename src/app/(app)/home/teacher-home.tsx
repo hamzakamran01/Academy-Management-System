@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, FilePlus2, GraduationCap, NotebookPen, PenLine, Wallet } from "lucide-react";
+import { CheckCircle2, ClipboardList, FilePlus2, GraduationCap, NotebookPen, PenLine } from "lucide-react";
 import Link from "next/link";
 import { ProgressStatus } from "@/components/progress-bits";
 
@@ -61,15 +61,12 @@ export function TeacherHome({ d }: { d: D }) {
                   </div>
                 )}
               </Link>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2">
                 <ButtonLink href={`/lesson/${s.id}`} variant={s.loggedToday ? "secondary" : "primary"} size="sm" className="px-2">
                   {s.loggedToday ? <CheckCircle2 aria-hidden /> : <PenLine aria-hidden />} {s.loggedToday ? "Logged" : "Log"}
                 </ButtonLink>
                 <ButtonLink href={`/results?new=${s.id}`} variant="secondary" size="sm" className="px-2">
                   <FilePlus2 aria-hidden /> Test
-                </ButtonLink>
-                <ButtonLink href={`/fees/class/${s.classId}`} variant="secondary" size="sm" className="px-2">
-                  <Wallet aria-hidden /> Fees
                 </ButtonLink>
               </div>
               {s.planStatus !== "submitted" && (

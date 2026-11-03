@@ -77,7 +77,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             classes={classes.map((c) => ({ id: c.id, name: c.name }))}
             currentClassId={sp.classId}
             today={todayPkt()}
-            showFee={true}
+            showFee={admin}
           />
           {admin && !moveMode && <Fab href={sp.classId ? `/students/new?classId=${sp.classId}` : "/students/new"} label="Add student" icon={UserPlus} />}
           {!moveMode && items.length < total && (

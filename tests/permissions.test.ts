@@ -86,8 +86,7 @@ describe("permissions & DTO rules", () => {
     await expect(buildReport(admin, "finance", { month })).rejects.toMatchObject({ status: 403 });
     await expect(buildReport(admin, "salaries", { month })).rejects.toMatchObject({ status: 403 });
     await expect(buildReport(teacher, "unpaid", {})).rejects.toMatchObject({ status: 403 });
-    const teacherFees = await buildReport(teacher, "fee-status", { classId: classA, month });
-    expect(teacherFees.columns.map((c) => c.header).join()).not.toMatch(/Amount/);
+    await expect(buildReport(teacher, "fee-status", { classId: classA, month })).rejects.toMatchObject({ status: 403 });
   });
 
   it("admins don't see fee-amount or salary activity (BR-ADM-02)", async () => {

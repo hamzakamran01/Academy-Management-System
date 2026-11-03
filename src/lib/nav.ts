@@ -45,7 +45,7 @@ export const BOTTOM_NAV: Record<Role, NavItem[]> = {
     { href: "/home", label: "Today", icon: Sun },
     { href: "/classes", label: "My Classes", icon: Library, match: ["/lesson", "/plans", "/syllabus"] },
     { href: "/results", label: "Results", icon: GraduationCap },
-    { href: "/fees", label: "Fees", icon: Wallet },
+    { href: "/my-salary", label: "Salary", icon: Banknote },
     more,
   ],
   admin: [
@@ -115,11 +115,10 @@ export const MENU: Record<Role, NavGroup[]> = {
       { href: "/classes", label: "My classes", icon: Library },
       { href: "/plans", label: "Weekly plans", icon: ClipboardList },
       { href: "/results", label: "Results", icon: GraduationCap },
-      { href: "/fees", label: "Fees", icon: Wallet },
     ] },
     { label: "Me", items: [
       { href: "/my-progress", label: "My progress", icon: ListChecks },
-      { href: "/my-salary", label: "My salary", icon: Banknote },
+      { href: "/my-salary", label: "Salary", icon: Banknote },
       { href: "/reports", label: "Reports", icon: FileBarChart },
     ] },
     { label: "Communication", items: [

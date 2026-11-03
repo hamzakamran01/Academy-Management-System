@@ -33,11 +33,11 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
     throw e;
   });
   const admin = isStaffAdmin(ctx.role);
-  const tab = ["details", "results", "fees", "history"].includes(sp.tab ?? "") ? sp.tab! : "details";
+  const tab = (admin ? ["details", "results", "fees", "history"] : ["details", "results"]).includes(sp.tab ?? "") ? sp.tab! : "details";
   const tabs = [
     { key: "details", label: "Details", href: `/students/${id}` },
     { key: "results", label: "Results", href: `/students/${id}?tab=results` },
-    { key: "fees", label: "Fees", href: `/students/${id}?tab=fees` },
+    ...(admin ? [{ key: "fees", label: "Fees", href: `/students/${id}?tab=fees` }] : []),
     ...(admin ? [{ key: "history", label: "History", href: `/students/${id}?tab=history` }] : []),
   ];
 

@@ -16,7 +16,7 @@ import { FeeMarker } from "./fee-marker";
 export const metadata: Metadata = { title: "Class fees" };
 
 export default async function ClassFeesPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ month?: string }> }) {
-  const ctx = await requireCtx(["super_admin", "admin", "teacher"]);
+  const ctx = await requireCtx(["super_admin", "admin"]);
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const months = await monthOptions(ctx.academyId);
   const current = monthStart(todayPkt());

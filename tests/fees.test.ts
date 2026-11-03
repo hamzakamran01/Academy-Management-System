@@ -7,6 +7,7 @@ import type { Ctx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
 import {
   classFeeList,
+  feeOverview,
   financeSummary,
   generateMonthRows,
   markFee,
@@ -67,7 +68,7 @@ describe("fees", () => {
     // Paid: Ali (4500), the two 2000s, and 28 students at 6000 (ids 4..31) = 31 rows, Rs 176,500
     const paid = [aliId, ids[1]!, ids[2]!, ...ids.slice(3, 31)];
     expect(paid).toHaveLength(31);
-    for (const sid of paid) await markFee(teacher, byStudent.get(sid)!, "paid");
+    for (const sid of paid) await markFee(admin, byStudent.get(sid)!, "paid");
     // Waive one Rs 6,000 month
     await waiveFee(owner, byStudent.get(ids[31]!)!, "Hardship");
 
@@ -82,12 +83,11 @@ describe("fees", () => {
     expect(f.recovered).toBe(176_500);
   });
 
-  it("never sends amounts to teachers (NFR-SEC-05)", async () => {
-    const list = await classFeeList(teacher, classId, month);
-    expect(list.rows.length).toBe(40);
-    for (const r of list.rows) expect(r).not.toHaveProperty("amount");
-    expect(list).not.toHaveProperty("totals");
-    expect(JSON.stringify(list)).not.toMatch(/"amount"/);
+  it("keeps fee status away from teachers entirely — the office enforces fees", async () => {
+    const [row] = await db.select().from(feeRows).where(eq(feeRows.studentId, aliId));
+    await expect(classFeeList(teacher, classId, month)).rejects.toMatchObject({ status: 403 });
+    await expect(feeOverview(teacher, month)).rejects.toMatchObject({ status: 403 });
+    await expect(markFee(teacher, row!.id, "paid")).rejects.toMatchObject({ status: 403 });
   });
 
   it("blocks teachers outside their classes and non-owners from finance", async () => {

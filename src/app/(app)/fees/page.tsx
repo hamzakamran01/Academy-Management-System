@@ -19,7 +19,7 @@ import { GenerateButton } from "./generate-button";
 export const metadata: Metadata = { title: "Fees" };
 
 export default async function FeesPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
-  const ctx = await requireCtx();
+  const ctx = await requireCtx(["super_admin", "admin", "parent"]);
   if (ctx.role === "parent") return <ParentFees ctx={ctx} />;
 
   const sp = await searchParams;
@@ -34,7 +34,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
     <>
       <PageHeader
         title="Fees"
-        subtitle={ctx.role === "teacher" ? "Mark fees as students bring them" : "Paid / unpaid status by class"}
+        subtitle="Paid / unpaid status by class"
         actions={
           ctx.role === "super_admin" && (
             <ButtonLink href="/fees/settings" variant="secondary" size="sm">

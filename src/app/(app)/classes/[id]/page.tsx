@@ -36,7 +36,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
   const quick = [
     { href: `/students?classId=${id}`, label: "Students", icon: Users, show: true },
     { href: `/results?classId=${id}`, label: "Results", icon: GraduationCap, show: true },
-    { href: `/fees/class/${id}`, label: "Fees", icon: Wallet, show: true },
+    { href: `/fees/class/${id}`, label: "Fees", icon: Wallet, show: isStaffAdmin(ctx.role) },
     { href: `/progress?classId=${id}`, label: "Progress", icon: ClipboardList, show: true },
   ].filter((q) => q.show);
 

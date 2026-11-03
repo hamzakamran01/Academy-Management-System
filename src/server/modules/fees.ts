@@ -8,7 +8,7 @@ import { addMonths, monthEnd, monthStart, todayPkt } from "@/lib/dates";
 import { formatMonth } from "@/lib/format";
 import { isStaffAdmin } from "@/lib/roles";
 import { badRequest, conflict, forbidden, notFound } from "@/server/http";
-import { assertClassVisible, assertStudentVisible, parentStudentIds, teacherClassIds } from "@/server/policy/scope";
+import { assertClassVisible, assertStudentVisible, parentStudentIds } from "@/server/policy/scope";
 import { getSettings, requireCurrentYear } from "./academy";
 import { logActivity } from "./audit";
 import { effectiveFee } from "./fee-rows";
@@ -158,15 +158,9 @@ export type MarkResult = { id: string; status: "paid" | "unpaid" | "waived"; mar
 
 /** FR-FEE-06 / BR-FEE-05 / BR-FEE-06 */
 export async function markFee(ctx: Ctx, rowId: string, to: "paid" | "unpaid", note?: string | null): Promise<MarkResult> {
-  if (!isStaffAdmin(ctx.role) && ctx.role !== "teacher") throw forbidden();
+  // Fee collection is enforced by the office (owner/admin) only — teachers never see fee status.
+  if (!isStaffAdmin(ctx.role)) throw forbidden();
   const settings = await getSettings(ctx.academyId);
-  // Teacher scope is resolved before the transaction (single-connection safe).
-  const [peek] = await db.select({ studentId: feeRows.studentId, month: feeRows.month }).from(feeRows).where(and(eq(feeRows.id, rowId), eq(feeRows.academyId, ctx.academyId)));
-  if (!peek) throw notFound("Fee row");
-  if (ctx.role === "teacher") {
-    await assertStudentVisible(ctx, peek.studentId);
-    if (peek.month > currentMonth()) throw forbidden("You can't mark future months");
-  }
 
   return db.transaction(async (tx) => {
     const { row, studentName } = await loadRowForMarking(tx, ctx, rowId);
@@ -267,7 +261,7 @@ const countRows = (rows: { status: string }[]): FeeCounts => ({
 
 /** FR-FEE-08: one class, one month. Teachers get no amounts. */
 export async function classFeeList(ctx: Ctx, classId: string, month: string) {
-  if (ctx.role === "parent") throw forbidden();
+  if (!isStaffAdmin(ctx.role)) throw forbidden();
   await assertClassVisible(ctx, classId);
   const [cls] = await db.select({ id: classes.id, name: classes.name }).from(classes).where(and(eq(classes.id, classId), eq(classes.academyId, ctx.academyId)));
   if (!cls) throw notFound("Class");
@@ -301,12 +295,11 @@ export async function classFeeList(ctx: Ctx, classId: string, month: string) {
   };
 }
 
-/** FR-FEE-09: per-class counts for a month (teachers: their classes). No money. */
+/** FR-FEE-09: per-class counts for a month. Owner/admin only. */
 export async function feeOverview(ctx: Ctx, month: string) {
-  if (ctx.role === "parent") throw forbidden();
+  if (!isStaffAdmin(ctx.role)) throw forbidden();
   const year = await requireCurrentYear(ctx.academyId);
-  const scope = ctx.role === "teacher" ? await teacherClassIds(ctx.userId, ctx.academyId) : null;
-  if (scope && !scope.length) return { month, classes: [], totals: { paid: 0, unpaid: 0, waived: 0, total: 0 }, generated: false };
+  const scope: string[] | null = null;
   const cls = await db
     .select({ id: classes.id, name: classes.name, shift: classes.shift })
     .from(classes)
