@@ -1,13 +1,13 @@
 import { ChevronRight, Library, UserMinus, UserPlus, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ClassBadge } from "@/components/class-badge";
 import { PageHeader } from "@/components/shell/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/cn";
 import { todayPkt } from "@/lib/dates";
-import { classBadge } from "@/lib/format";
 import { isStaffAdmin } from "@/lib/roles";
 import { uuidOrUndefined } from "@/lib/validation";
 import { requireCtx } from "@/server/auth/session";
@@ -68,9 +68,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   href={`/students?classId=${c.id}`}
                   className="group flex items-center gap-3.5 rounded-xl border border-border bg-surface p-4 shadow-card transition-[background-color,transform,box-shadow] hover:bg-surface-2 hover:shadow-raised active:scale-[0.985]"
                 >
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-[15px] font-bold text-primary-soft-fg">
-                    {classBadge(c.name)}
-                  </span>
+                  <ClassBadge name={c.name} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-semibold">{c.name}</span>
                     <span className="block text-[13px] text-muted">

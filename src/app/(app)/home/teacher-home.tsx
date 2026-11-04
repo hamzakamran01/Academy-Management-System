@@ -1,5 +1,6 @@
 import { CheckCircle2, ChevronRight, CircleDashed, ClipboardList, FilePlus2, Flame, GraduationCap, PenLine } from "lucide-react";
 import Link from "next/link";
+import { ClassBadge } from "@/components/class-badge";
 import { Mascot } from "@/components/mascot";
 import { DayStrip, LogBody, LogPill } from "@/components/teaching-log";
 import { ButtonLink } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { Card, SectionTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/data";
 import { EmptyState, Notice } from "@/components/ui/feedback";
 import { cn } from "@/lib/cn";
-import { classBadge } from "@/lib/format";
 import type { teacherDashboard } from "@/server/modules/dashboards";
 
 type D = Awaited<ReturnType<typeof teacherDashboard>>;
@@ -94,9 +94,7 @@ function ClassMenu({ d, classes, drafts }: { d: D; classes: TeacherClass[]; draf
                   className="group flex h-full flex-col rounded-2xl border border-border bg-surface p-4 shadow-card transition-[background-color,transform,box-shadow] hover:bg-surface-2 hover:shadow-raised active:scale-[0.985]"
                 >
                   <div className="mb-4 flex items-center gap-3.5">
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-base font-bold text-primary-soft-fg">
-                      {classBadge(c.name)}
-                    </span>
+                    <ClassBadge name={c.name} size="lg" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-base font-semibold">{c.name}</span>
                       <span className="block truncate text-[13px] text-muted">{c.items.map((i) => i.subjectName).join(" · ")}</span>

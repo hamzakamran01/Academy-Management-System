@@ -2,6 +2,7 @@ import { AlertTriangle, ChevronRight, Receipt, Settings2, Wallet } from "lucide-
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MonthPicker } from "@/components/month-picker";
+import { ClassBadge } from "@/components/class-badge";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -98,8 +99,9 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
                       href={`/fees/class/${c.id}?month=${month}`}
                       className="group block rounded-xl border border-border bg-surface p-4 shadow-card transition-colors hover:bg-surface-2 active:bg-surface-3"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate font-semibold">{c.name}</p>
+                      <div className="flex items-center gap-3">
+                        <ClassBadge name={c.name} size="sm" />
+                        <p className="min-w-0 flex-1 truncate font-semibold">{c.name}</p>
                         <ChevronRight className="size-5 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5" aria-hidden />
                       </div>
                       <p className="mt-1 text-[13px] text-muted">

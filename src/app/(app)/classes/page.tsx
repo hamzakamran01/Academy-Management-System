@@ -1,6 +1,7 @@
 import { BookOpen, Library, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ClassBadge } from "@/components/class-badge";
 import { PageHeader } from "@/components/shell/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -47,7 +48,8 @@ export default async function ClassesPage() {
             <li key={c.id}>
               <Link href={`/classes/${c.id}`} className="block h-full">
                 <Card className="h-full p-4 transition-colors hover:bg-surface-2 active:bg-surface-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3.5">
+                    <ClassBadge name={c.name} />
                     <div className="min-w-0">
                       <p className="truncate text-base font-semibold">{c.name}</p>
                       {c.shift && <p className="text-[13px] text-muted">{c.shift} shift</p>}
