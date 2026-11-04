@@ -25,7 +25,8 @@ export default async function LessonPage({ params, searchParams }: { params: Pro
     throw e;
   });
   const days = [0, 1, 2].map((n) => addDays(today, -n));
-  const doneHref = ctx.role === "teacher" ? "/home" : `/progress/${csId}`;
+  // Teachers return to the class they came from on their home screen.
+  const doneHref = ctx.role === "teacher" ? `/home?class=${data.info.classId}` : `/progress/${csId}`;
 
   return (
     <div className="mx-auto max-w-2xl">

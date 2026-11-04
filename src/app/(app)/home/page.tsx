@@ -9,8 +9,9 @@ import { adminDashboard, ownerDashboard, parentDashboard, teacherDashboard } fro
 import { AdminHome } from "./admin-home";
 import { OwnerHome } from "./owner-home";
 import { ParentHome } from "./parent-home";
-import { TeacherHome } from "./teacher-home";
+import { TeacherHome, teacherClasses } from "./teacher-home";
 import { APP_NAME } from "@/lib/brand";
+import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Home" };
 export const dynamic = "force-dynamic";
@@ -21,20 +22,26 @@ function greeting(): string {
 }
 
 /** Role homes (PRD §4.2, FR-DSH-01…04). */
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ welcome?: string; denied?: string; student?: string }> }) {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ welcome?: string; denied?: string; student?: string; class?: string }> }) {
   const ctx = await requireCtx();
   const [academy, sp] = await Promise.all([getAcademy(ctx.academyId), searchParams]);
   const first = ctx.name.split(" ")[0];
 
   let body: React.ReactNode;
+  let header = <PageHeader title={`${greeting()}, ${first}`} subtitle={`${academy.name} · ${ROLE_LABEL[ctx.role]}`} bell />;
   if (ctx.role === "super_admin") body = <OwnerHome d={await ownerDashboard(ctx)} />;
   else if (ctx.role === "admin") body = <AdminHome d={await adminDashboard(ctx)} />;
-  else if (ctx.role === "teacher") body = <TeacherHome d={await teacherDashboard(ctx)} />;
-  else body = <ParentHome d={await parentDashboard(ctx, uuidOrUndefined(sp.student))} />;
+  else if (ctx.role === "teacher") {
+    const d = await teacherDashboard(ctx);
+    // Step 2 of the teacher home: one class chosen from the class menu.
+    const cls = teacherClasses(d.log.items).find((c) => c.id === uuidOrUndefined(sp.class));
+    if (cls) header = <PageHeader title={cls.name} subtitle={`Today · ${formatDate(d.log.today)}`} back="/home" bell />;
+    body = <TeacherHome d={d} classId={cls?.id} />;
+  } else body = <ParentHome d={await parentDashboard(ctx, uuidOrUndefined(sp.student))} />;
 
   return (
     <>
-      <PageHeader title={`${greeting()}, ${first}`} subtitle={`${academy.name} · ${ROLE_LABEL[ctx.role]}`} bell />
+      {header}
       {sp.welcome === "1" && (
         <Notice tone="success" className="mb-4" title="You're all set">
           Your password is saved. Add {APP_NAME} to your home screen from More → Install app.

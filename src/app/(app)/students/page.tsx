@@ -5,9 +5,9 @@ import { PageHeader } from "@/components/shell/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
 import { Pagination } from "@/components/ui/pagination";
-import { Fab } from "@/components/fab";
 import { cn } from "@/lib/cn";
 import { todayPkt } from "@/lib/dates";
+import { classBadge } from "@/lib/format";
 import { isStaffAdmin } from "@/lib/roles";
 import { uuidOrUndefined } from "@/lib/validation";
 import { requireCtx } from "@/server/auth/session";
@@ -38,24 +38,21 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const addHref = sp.classId ? `/students/new?classId=${sp.classId}` : "/students/new";
 
   const classes = await listClasses(ctx);
+  // One "Add student" per screen, always on the search row — same place on phone and desktop.
+  const addButton = (
+    <ButtonLink href={addHref} className="shrink-0" aria-label="Add student">
+      <UserPlus aria-hidden /> <span className="sm:hidden">Add</span>
+      <span className="max-sm:hidden">Add student</span>
+    </ButtonLink>
+  );
 
   // ── Step 1: choose a class ────────────────────────────────────────────────
   if (!sp.classId && !q && status === "active") {
     const total = classes.reduce((n, c) => n + c.studentCount, 0);
     return (
       <>
-        <PageHeader
-          title="Students"
-          subtitle={`${total.toLocaleString("en-PK")} active · choose a class`}
-          actions={
-            admin && (
-              <ButtonLink href={addHref} className="max-lg:hidden">
-                <UserPlus aria-hidden /> Add student
-              </ButtonLink>
-            )
-          }
-        />
-        <StudentSearch placeholder="Search any student" />
+        <PageHeader title="Students" subtitle={`${total.toLocaleString("en-PK")} active · choose a class`} />
+        <StudentSearch placeholder="Search any student" action={admin && classes.length > 0 ? addButton : undefined} />
         {classes.length === 0 ? (
           <EmptyState
             icon={Library}
@@ -85,16 +82,26 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                 </Link>
               </li>
             ))}
+            {admin && (
+              // Sits in the grid as one more tile, so it lines up with the classes.
+              <li>
+                <Link
+                  href="/students?status=removed"
+                  className="group flex h-full items-center gap-3.5 rounded-xl border border-dashed border-border bg-surface/60 p-4 transition-[background-color,transform] hover:bg-surface-2 active:scale-[0.985]"
+                >
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-surface-3 text-muted">
+                    <UserMinus className="size-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold">Removed students</span>
+                    <span className="block text-[13px] text-muted">View history or re-admit</span>
+                  </span>
+                  <ChevronRight className="size-5 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </Link>
+              </li>
+            )}
           </ul>
         )}
-        {admin && (
-          <div className="mb-24 mt-5 flex justify-center lg:mb-0">
-            <ButtonLink href="/students?status=removed" variant="ghost" size="sm" className="text-muted">
-              <UserMinus aria-hidden /> Removed students
-            </ButtonLink>
-          </div>
-        )}
-        {admin && <Fab href={addHref} label="Add student" icon={UserPlus} />}
       </>
     );
   }
@@ -115,6 +122,10 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     return `/students?${p.toString()}`;
   };
   const title = moveMode ? "Move students" : cls ? cls.name : status === "removed" ? "Removed students" : "Search results";
+  // An empty class shows one big "Add student" in its empty state, so the
+  // search-row button steps aside — never two "Add student" buttons at once.
+  const emptyClass = items.length === 0 && !filtered && admin && !!cls;
+  const showAdd = admin && !moveMode && !emptyClass && status === "active";
 
   return (
     <>
@@ -122,14 +133,6 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         title={title}
         subtitle={`${total.toLocaleString("en-PK")} ${status === "removed" ? "removed" : status === "all" ? "total" : "student" + (total === 1 ? "" : "s")}${q ? ` matching “${q}”` : ""}`}
         back={moveMode ? `/classes/${sp.classId}` : "/students"}
-        actions={
-          admin &&
-          !moveMode && (
-            <ButtonLink href={addHref} className="max-lg:hidden">
-              <UserPlus aria-hidden /> Add student
-            </ButtonLink>
-          )
-        }
       />
       {!moveMode && (
         <>
@@ -150,16 +153,27 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
               ))}
             </nav>
           )}
-          <StudentFilters showStatus={admin && !!cls} showFee={admin && !!cls} inClass={!!cls} />
+          <StudentFilters showStatus={admin && !!cls} showFee={admin && !!cls} inClass={!!cls} action={showAdd ? addButton : undefined} />
         </>
       )}
 
-      {items.length === 0 ? (
+      {emptyClass ? (
+        <EmptyState
+          icon={UserPlus}
+          title={`No students in ${cls.name} yet`}
+          description="Add the first student — their parent can sign in the same day."
+          action={
+            <ButtonLink href={addHref} size="lg">
+              <UserPlus aria-hidden /> Add student
+            </ButtonLink>
+          }
+          className="rounded-2xl border border-dashed border-border bg-surface py-14"
+        />
+      ) : items.length === 0 ? (
         <EmptyState
           icon={UsersRound}
           title={filtered ? "No students match" : cls ? "No students in this class yet" : "No students found"}
-          description={filtered ? "Try a different search or clear the filters." : admin && cls ? "Add a student — the parent can sign in the same day." : undefined}
-          action={!filtered && admin && cls && <ButtonLink href={addHref}><UserPlus aria-hidden /> Add student</ButtonLink>}
+          description={filtered ? "Try a different search or clear the filters." : undefined}
         />
       ) : (
         <>
@@ -173,23 +187,9 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             showClass={!cls}
             startIndex={moveMode ? 0 : (page - 1) * PAGE_SIZE}
           />
-          {!moveMode && <Pagination page={page} pageSize={PAGE_SIZE} total={total} href={pageHref} className="mb-20 lg:mb-0" />}
+          {!moveMode && <Pagination page={page} pageSize={PAGE_SIZE} total={total} href={pageHref} />}
         </>
       )}
-      {admin && !moveMode && <Fab href={addHref} label="Add student" icon={UserPlus} />}
     </>
   );
-}
-
-/** "Grade 9 – A" → "9A", "FSc Pre-Medical" → "FP": a compact visual anchor for each class card. */
-function classBadge(name: string): string {
-  const num = name.match(/\d{1,2}/)?.[0];
-  const section = name.match(/[–-]\s*([A-Z])\b/)?.[1] ?? "";
-  if (num) return `${num}${section}`;
-  return name
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z]/.test(w))
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("");
 }

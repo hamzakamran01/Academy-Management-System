@@ -78,7 +78,7 @@ export async function teacherDashboard(ctx: Ctx) {
     teacherToday(ctx),
     csIds.length
       ? db
-          .select({ id: assessments.id, title: assessments.title, date: assessments.date, subjectName: subjects.name, className: classes.name })
+          .select({ id: assessments.id, title: assessments.title, date: assessments.date, subjectName: subjects.name, classId: classes.id, className: classes.name })
           .from(assessments)
           .innerJoin(classSubjects, eq(classSubjects.id, assessments.classSubjectId))
           .innerJoin(classes, eq(classes.id, classSubjects.classId))

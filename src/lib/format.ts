@@ -91,3 +91,16 @@ export function initials(name: string): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n.toLocaleString("en-PK")} ${n === 1 ? one : many}`;
 }
+
+/** "Grade 9 – A" → "9A", "FSc Pre-Medical" → "FP": a compact visual anchor for a class tile. */
+export function classBadge(name: string): string {
+  const num = name.match(/\d{1,2}/)?.[0];
+  const section = name.match(/[–-]\s*([A-Z])\b/)?.[1] ?? "";
+  if (num) return `${num}${section}`;
+  return name
+    .split(/\s+/)
+    .filter((w) => /^[A-Za-z]/.test(w))
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}

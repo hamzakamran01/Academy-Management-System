@@ -11,15 +11,20 @@ export const metadata: Metadata = { title: "Add student" };
 export default async function NewStudentPage({ searchParams }: { searchParams: Promise<{ classId?: string }> }) {
   const ctx = await requireCtx(["super_admin", "admin"]);
   const [classes, academy, sp] = await Promise.all([studentFormOptions(ctx), getAcademy(ctx.academyId), searchParams]);
+  const fromClass = classes.find((c) => c.id === sp.classId);
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Add student" subtitle="Parent gets access the same day" back="/students" />
+      <PageHeader
+        title="Add student"
+        subtitle={fromClass ? `To ${fromClass.name} · parent gets access the same day` : "Parent gets access the same day"}
+        back={fromClass ? `/students?classId=${fromClass.id}` : "/students"}
+      />
       <StudentForm
         mode="add"
         classes={classes}
         today={todayPkt()}
         academyName={academy.name}
-        initial={sp.classId && classes.some((c) => c.id === sp.classId) ? { classId: sp.classId } : undefined}
+        initial={fromClass ? { classId: fromClass.id } : undefined}
       />
     </div>
   );

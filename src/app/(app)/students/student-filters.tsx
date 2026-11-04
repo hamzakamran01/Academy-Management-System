@@ -38,36 +38,58 @@ function useUrlSearch() {
   return { q, setQ, pending, update, params };
 }
 
-/** First screen: one search box across every class. */
-export function StudentSearch({ placeholder }: { placeholder: string }) {
+/** First screen: one search box across every class, with the screen's main action beside it. */
+export function StudentSearch({ placeholder, action }: { placeholder: string; action?: React.ReactNode }) {
   const { q, setQ, pending } = useUrlSearch();
   return (
-    <div className={cn("mb-4 transition-opacity", pending && "opacity-70")}>
-      <SearchInput placeholder={placeholder} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search students" />
+    <div className="mb-4 flex items-center gap-2">
+      <SearchInput
+        className={cn("min-w-0 flex-1 transition-opacity", pending && "opacity-70")}
+        placeholder={placeholder}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        aria-label="Search students"
+      />
+      {action}
     </div>
   );
 }
 
 /** Inside a class: search within it, plus Active / Removed and Fee unpaid for the office. */
-export function StudentFilters({ showStatus, showFee, inClass }: { showStatus: boolean; showFee: boolean; inClass: boolean }) {
+export function StudentFilters({
+  showStatus,
+  showFee,
+  inClass,
+  action,
+}: {
+  showStatus: boolean;
+  showFee: boolean;
+  inClass: boolean;
+  /** Primary action shown on the same row as the search box. */
+  action?: React.ReactNode;
+}) {
   const { q, setQ, pending, update, params } = useUrlSearch();
   const status = params.get("status") ?? "active";
   const fee = params.get("feeStatus") ?? "";
 
   return (
     <div className={cn("mb-4 space-y-3 transition-opacity", pending && "opacity-70")}>
-      <SearchInput
-        placeholder={inClass ? "Search in this class" : "Search name, roll no. or phone"}
-        // Coming from the first screen's search: keep typing without re-tapping.
-        autoFocus={!inClass && !!q}
-        onFocus={(e) => {
-          const n = e.currentTarget.value.length;
-          e.currentTarget.setSelectionRange(n, n);
-        }}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        aria-label="Search students"
-      />
+      <div className="flex items-center gap-2">
+        <SearchInput
+          className="min-w-0 flex-1"
+          placeholder={inClass ? "Search in this class" : "Search name, roll no. or phone"}
+          // Coming from the first screen's search: keep typing without re-tapping.
+          autoFocus={!inClass && !!q}
+          onFocus={(e) => {
+            const n = e.currentTarget.value.length;
+            e.currentTarget.setSelectionRange(n, n);
+          }}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Search students"
+        />
+        {action}
+      </div>
       {(showStatus || showFee) && (
         <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           {showStatus &&
