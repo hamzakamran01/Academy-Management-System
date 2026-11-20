@@ -21,6 +21,7 @@ export default async function NewStudentPage({ searchParams }: { searchParams: P
       />
       <StudentForm
         mode="add"
+        canSetFee={ctx.role === "super_admin"}
         classes={classes}
         today={todayPkt()}
         academyName={academy.name}

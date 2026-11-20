@@ -5,7 +5,7 @@ import { monthStart, todayPkt } from "@/lib/dates";
 import type { Ctx } from "@/server/auth/session";
 import { listActivity } from "@/server/modules/admin";
 import { createAnnouncement, listAnnouncements } from "@/server/modules/announcements";
-import { classFeeList, financeSummary, generateMonthRows, setClassFee, studentFeeRows } from "@/server/modules/fees";
+import { classFeeList, financeSummary, generateMonthRows, setStudentFee, studentFeeRows } from "@/server/modules/fees";
 import { listClasses } from "@/server/modules/org";
 import { parentClassLog as parentProgress } from "@/server/modules/teaching";
 import { buildReport } from "@/server/modules/reports";
@@ -30,8 +30,8 @@ describe("permissions & DTO rules", () => {
     teacher = await makeUser(academyId, "teacher", "Teacher A");
     otherTeacher = await makeUser(academyId, "teacher", "Teacher B");
     parent = await makeUser(academyId, "parent");
-    classA = (await makeClass(academyId, yearId, "9-A", { fee: 6000, setBy: owner.userId })).id;
-    classB = (await makeClass(academyId, yearId, "9-B", { fee: 7000, setBy: owner.userId })).id;
+    classA = (await makeClass(academyId, yearId, "9-A")).id;
+    classB = (await makeClass(academyId, yearId, "9-B")).id;
     const [sub] = await db.insert(subjects).values({ academyId, name: "Maths" }).returning();
     const [csA] = await db.insert(classSubjects).values({ classId: classA, subjectId: sub!.id }).returning();
     const [csB] = await db.insert(classSubjects).values({ classId: classB, subjectId: sub!.id }).returning();
@@ -42,8 +42,10 @@ describe("permissions & DTO rules", () => {
     mine = (await makeStudent(academyId, classA, 1, "Mine")).id;
     notMine = (await makeStudent(academyId, classB, 1, "Not mine")).id;
     await db.insert(parentLinks).values({ parentUserId: parent.userId, studentId: mine, relation: "mother" });
+    await setStudentFee(owner, mine, 6000, null, false);
+    await setStudentFee(owner, notMine, 7000, null, false);
     await generateMonthRows(academyId, month, owner);
-    await setClassFee(owner, classA, 6500, false); // finance_amount activity entry
+    await setStudentFee(owner, mine, 6500, null, false); // finance_amount activity entry
     await setSalary(owner, teacher.userId, 50_000, month); // salary activity entry
   });
 

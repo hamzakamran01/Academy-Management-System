@@ -102,7 +102,6 @@ export async function seedDemo(db: Database): Promise<void> {
         .insert(s.classes)
         .values({ academyId, academicYearId: yearId, name: def.name, level: def.level, shift: def.shift })
         .returning();
-      await tx.insert(s.classFees).values({ classId: cls!.id, monthlyFee: def.fee, setBy: owner.id });
       for (const [subjectName, teacher] of Object.entries(def.subjects)) {
         const [cs] = await tx.insert(s.classSubjects).values({ classId: cls!.id, subjectId: subj[subjectName]! }).returning();
         await tx.insert(s.classSubjectTeachers).values({ classSubjectId: cs!.id, teacherId: teacher.id, fromDate: `${startYear}-04-01` });
@@ -129,6 +128,8 @@ export async function seedDemo(db: Database): Promise<void> {
           })
           .returning();
         await tx.insert(s.enrollments).values({ studentId: st!.id, classId: cls!.id, rollNo: String(i + 1), fromDate: `${startYear}-04-01` });
+
+        await tx.insert(s.studentFees).values({ studentId: st!.id, monthlyFee: def.fee, setBy: owner.id });
 
         // Parent account (the demo family shares one parent with a sibling in Grade 10)
         const phone = isDemoFamily ? "+923000000004" : `+92300${String(1000000 + phoneSeq++).slice(-7)}`;
@@ -193,7 +194,6 @@ export async function seedDemo(db: Database): Promise<void> {
       { userId: owner.id, role: "super_admin", type: "system.monthly_rows", title: "Monthly lists created", body: "Fee rows and salary rows for this month were created automatically.", link: "/finance", pushCancelledAt: new Date() },
     ]);
     await tx.insert(s.activityLog).values([
-      { academyId, actorId: owner.id, actorRole: "super_admin", action: "fee.class_set", entityType: "class", summary: "Set FSc Pre-Medical – Evening monthly fee to Rs 8,000", before: { monthlyFee: 7500 }, after: { monthlyFee: 8000 }, sensitivity: "finance_amount", at: new Date(Date.now() - 6 * 86_400_000) },
       { academyId, actorId: owner.id, actorRole: "super_admin", action: "student.add", entityType: "student", summary: "Added Sara Raza (CL-26) to Grade 10 – A", at: new Date(Date.now() - 4 * 86_400_000) },
       { academyId, actorId: ayesha.id, actorRole: "teacher", action: "assessment.publish", entityType: "assessment", summary: "Published Physics “Weekly test 4”", at: new Date(Date.now() - 7 * 86_400_000) },
       { academyId, actorId: ayesha.id, actorRole: "teacher", action: "fee_row.mark_paid", entityType: "fee_row", summary: "Marked paid: Abdullah Abbasi, November 2026", before: { status: "unpaid" }, after: { status: "paid" }, at: new Date(Date.now() - 3600_000) },

@@ -39,7 +39,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
         actions={
           ctx.role === "super_admin" && (
             <ButtonLink href="/fees/settings" variant="secondary" size="sm">
-              <Settings2 aria-hidden /> <span className="hidden sm:inline">Fee settings</span>
+              <Settings2 aria-hidden /> Student fees
             </ButtonLink>
           )
         }

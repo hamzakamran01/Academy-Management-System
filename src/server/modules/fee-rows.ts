@@ -1,23 +1,13 @@
 import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Tx } from "@/server/db";
-import { classFees, enrollments, feeRows, studentFees } from "@/server/db/schema";
-
-/**
- * BR-FEE-01: effective fee = personal fee if set, else the class default, else 0.
- * Returned `source` lets Super Admin screens flag "Fee not set".
- */
-export async function effectiveFee(tx: Tx, studentId: string, classId: string): Promise<{ amount: number; source: "student" | "class" | "none" }> {
-  const [personal] = await tx.select({ fee: studentFees.monthlyFee }).from(studentFees).where(eq(studentFees.studentId, studentId));
-  if (personal) return { amount: personal.fee, source: "student" };
-  const [cls] = await tx.select({ fee: classFees.monthlyFee }).from(classFees).where(eq(classFees.classId, classId));
-  if (cls) return { amount: cls.fee, source: "class" };
-  return { amount: 0, source: "none" };
-}
+import { enrollments, feeRows, studentFees } from "@/server/db/schema";
 
 /** BR-FEE-03: create this month's row on join / re-admit if none exists (idempotent). */
 export async function ensureFeeRow(tx: Tx, academyId: string, studentId: string, classId: string, month: string): Promise<boolean> {
-  const { amount } = await effectiveFee(tx, studentId, classId);
+  const [fee] = await tx.select({ amount: studentFees.monthlyFee }).from(studentFees).where(eq(studentFees.studentId, studentId));
+  if (!fee) return false;
+  const { amount } = fee;
   const inserted = await tx
     .insert(feeRows)
     .values({ academyId, studentId, classId, month, amount })

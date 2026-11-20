@@ -120,7 +120,7 @@ export function FeeMarker({
       {shown.length === 0 ? (
         <div className="flex flex-col items-center py-14 text-center text-muted">
           <SearchX className="mb-2 size-8" aria-hidden />
-          <p className="text-sm">{unpaidOnly && counts.unpaid === 0 ? "Everyone has paid this month 🎉" : "No students match"}</p>
+          <p className="text-sm">{unpaidOnly && counts.unpaid === 0 ? "No unpaid fees this month" : "No students match"}</p>
         </div>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
@@ -151,7 +151,7 @@ export function FeeMarker({
                 />
               )}
               {isOwner && (
-                <Button variant="ghost" size="icon-sm" className="-ms-1 -me-2 w-8" aria-label={`More for ${r.name}`} onClick={() => setWaiving(r)}>
+                <Button variant="ghost" size="icon-sm" className="-ms-1 -me-2 size-12 shrink-0" aria-label={`More for ${r.name}`} onClick={() => setWaiving(r)}>
                   <MoreHorizontal />
                 </Button>
               )}
@@ -198,12 +198,12 @@ function PaidToggle({ paid, disabled, onChange, name }: { paid: boolean; disable
       disabled={disabled}
       onClick={() => onChange(!paid)}
       className={cn(
-        "inline-flex h-11 w-[104px] shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex h-12 w-[104px] shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60",
         paid ? "bg-success text-white shadow-xs" : "border-2 border-warning/70 bg-warning-soft text-warning-fg",
       )}
     >
       {paid ? <Check className="size-[18px]" strokeWidth={2.6} aria-hidden /> : <Hourglass className="size-4" aria-hidden />}
-      {paid ? "Paid" : "Unpaid"}
+      {paid ? "Paid" : "Mark paid"}
     </button>
   );
 }

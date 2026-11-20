@@ -35,7 +35,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         subtitle={`Updated ${formatTime(f.asOf)} · private to you`}
         actions={
           <ButtonLink href="/fees/settings" variant="secondary" size="sm">
-            <Settings2 aria-hidden /> <span className="hidden sm:inline">Fee settings</span>
+            <Settings2 aria-hidden /> Student fees
           </ButtonLink>
         }
         bell
@@ -46,6 +46,12 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           Fee status by class →
         </Link>
       </div>
+
+      {f.feeNotSetCount > 0 && (
+        <Notice tone="warning" icon={AlertTriangle} className="mb-4" title={`${f.feeNotSetCount} active student${f.feeNotSetCount === 1 ? " needs" : "s need"} a fee`}>
+          <Link href="/fees/settings?missing=1" className="font-semibold underline">Set missing monthly fees</Link>
+        </Notice>
+      )}
 
       {f.counts.total === 0 ? (
         <Card>
@@ -110,11 +116,6 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             </CardBody>
           </Card>
 
-          {f.feeNotSetCount > 0 && (
-            <Notice tone="warning" icon={AlertTriangle} className="mb-4" title={`${f.feeNotSetCount} active student${f.feeNotSetCount === 1 ? " has" : "s have"} no fee set`}>
-              Their monthly rows are Rs 0. <Link href="/fees/settings" className="font-semibold underline">Set class fees</Link>
-            </Notice>
-          )}
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
             <Card>

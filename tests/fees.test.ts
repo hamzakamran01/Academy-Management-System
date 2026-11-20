@@ -1,7 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+import { and, eq, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { feeRows, studentFees } from "@/server/db/schema";
+import { classFees, feeRows, studentFees } from "@/server/db/schema";
 import { addMonths, monthStart, todayPkt } from "@/lib/dates";
 import type { Ctx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
@@ -14,6 +15,7 @@ import {
   setStudentFee,
   waiveFee,
 } from "@/server/modules/fees";
+import { addStudent, listStudents } from "@/server/modules/students";
 import { makeAcademy, makeClass, makeStudent, makeUser } from "./fixtures";
 
 /**
@@ -35,12 +37,14 @@ describe("fees", () => {
     admin = await makeUser(academyId, "admin", "Admin");
     teacher = await makeUser(academyId, "teacher", "Class Teacher");
 
-    classId = (await makeClass(academyId, yearId, "9-A", { fee: 6000, setBy: owner.userId })).id;
-    otherClassId = (await makeClass(academyId, yearId, "9-B", { fee: 6000, setBy: owner.userId })).id;
+    classId = (await makeClass(academyId, yearId, "9-A")).id;
+    otherClassId = (await makeClass(academyId, yearId, "9-B")).id;
 
     for (let i = 1; i <= 40; i++) ids.push((await makeStudent(academyId, classId, i, i === 1 ? "Ali" : `S${i}`)).id);
     aliId = ids[0]!;
     otherStudentId = (await makeStudent(academyId, otherClassId, 1, "Other")).id;
+
+    for (const id of [...ids, otherStudentId]) await setStudentFee(owner, id, 6000, null, false);
 
     // Personal fees: Ali 4500, two at 2000, one at 3500 → total 36×6000 + 4500 + 2000 + 2000 + 3500 = 228,000
     await setStudentFee(owner, aliId, 4500, "Sibling discount", false);
@@ -57,7 +61,7 @@ describe("fees", () => {
     expect(second.total).toBe(41);
   });
 
-  it("snapshots the effective fee (personal > class)", async () => {
+  it("snapshots the student’s configured rate", async () => {
     const [ali] = await db.select().from(feeRows).where(and(eq(feeRows.studentId, aliId), eq(feeRows.month, month)));
     expect(ali!.amount).toBe(4500);
   });
@@ -131,5 +135,45 @@ describe("fees", () => {
     expect(b.version).toBe(a.version);
     const c = await markFee(admin, row!.id, "paid");
     expect(c.status).toBe("paid");
+  });
+  it("snapshots the fee at admission and leaves office admissions pending until configured", async () => {
+    const inputs = {
+      name: "New Student",
+      guardianName: "Guardian",
+      gender: "male" as const,
+      classId,
+      admissionDate: todayPkt(),
+      parents: [{ phone: "03158887001", relation: "father" as const }],
+    };
+    await expect(addStudent(owner, inputs)).rejects.toMatchObject({ code: "FEE_REQUIRED" });
+    await expect(addStudent(admin, { ...inputs, monthlyFee: 1 })).rejects.toMatchObject({ status: 403 });
+    const scholarship = await addStudent(owner, { ...inputs, monthlyFee: 0 });
+    const [firstBill] = await db.select().from(feeRows).where(eq(feeRows.studentId, scholarship.id));
+    expect(firstBill).toMatchObject({ month, amount: 0 });
+
+    const pending = await addStudent(admin, { ...inputs, name: "Office Admission" });
+    await generateMonthRows(owner.academyId, month, owner);
+    expect(await db.select().from(feeRows).where(eq(feeRows.studentId, pending.id))).toEqual([]);
+    expect((await listStudents(owner, { missingFee: true })).items.map((s) => s.id)).toEqual([pending.id]);
+    await setStudentFee(owner, pending.id, 4250, null, true);
+    const [bill] = await db.select().from(feeRows).where(eq(feeRows.studentId, pending.id));
+    expect(bill).toMatchObject({ month, amount: 4250 });
+  });
+
+  it("migrates inherited rates without changing overrides or issued bills", async () => {
+    const legacy = await makeStudent(owner.academyId, classId, 100, "Legacy fee student");
+    await db.insert(classFees).values({ classId, monthlyFee: 6200, setBy: owner.userId });
+    await db.insert(feeRows).values({
+      academyId: owner.academyId, studentId: legacy.id, classId, month, amount: 6000, status: "paid",
+    });
+    const migration = readFileSync("database/migrations/0004_student_fee_rates.sql", "utf8");
+    await db.execute(sql.raw(migration));
+    await db.execute(sql.raw(migration));
+    const [copied] = await db.select().from(studentFees).where(eq(studentFees.studentId, legacy.id));
+    const [existing] = await db.select().from(studentFees).where(eq(studentFees.studentId, aliId));
+    const [billed] = await db.select().from(feeRows).where(eq(feeRows.studentId, legacy.id));
+    expect(copied?.monthlyFee).toBe(6200);
+    expect(existing?.monthlyFee).toBe(5000);
+    expect(billed).toMatchObject({ status: "paid", amount: 6000 });
   });
 });

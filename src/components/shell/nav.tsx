@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronsUpDown, LogOut } from "lucide-react";
+import { Bell, ChevronsUpDown, LogOut, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -42,7 +42,7 @@ export function BottomNav({ role }: { role: Role }) {
               >
                 <span
                   className={cn(
-                    "flex h-8 w-14 items-center justify-center rounded-full transition-[background-color,color,transform] duration-200 group-active:scale-90",
+                    "flex h-8 w-12 sm:w-14 items-center justify-center rounded-full transition-[background-color,color,transform] duration-200 group-active:scale-90",
                     active ? "bg-primary-soft text-primary-soft-fg" : "text-muted group-active:bg-surface-2",
                   )}
                 >
@@ -86,6 +86,11 @@ export function Sidebar({
           {unread > 0 && <span className="absolute end-2 top-2 size-2 rounded-full bg-danger ring-2 ring-surface" />}
         </Link>
       </div>
+      {role === "super_admin" && (
+        <Link href="/students/new" className="mx-4 mb-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-3 font-semibold text-primary-fg hover:bg-primary-hover">
+          <UserPlus className="size-5" aria-hidden /> Admit student
+        </Link>
+      )}
       <nav className="no-scrollbar flex-1 overflow-y-auto px-3 pb-4" aria-label="Main">
         {MENU[role].map((group) => (
           <div key={group.label} className="mt-4 first:mt-2">

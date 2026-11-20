@@ -63,7 +63,7 @@ Phases are ordered by dependency and business priority. Every phase ends with a 
 | 3 | **Academy setup** | Years, working days, holidays, classes, subjects, teacher assignment, archive rules | ORG-01…09 | ✅ |
 | 4 | **Students** | Add (with parent linking), edit, move, remove, re-admit, profile, search | STU-01…10 | ✅ |
 | 5 | ~~Attendance~~ | **Deferred by owner (2 Nov 2026)** — tables kept, no screens or APIs in R1 | ATT-01…09 | ⏸ |
-| 6 | **Fees** | Class/personal fees, monthly rows, mark paid with undo, overviews, Finance | FEE-01…14 | ✅ |
+| 6 | **Fees** | Individual student fees, monthly rows, mark paid with undo, overviews, Finance | FEE-01…14 | ✅ |
 | 7 | **Results** | Tests, marks in front of names, publish/lock/unlock/correct, stats, trends | RES-01…11 | ✅ |
 | 8 | **Teaching progress** | Syllabus builder, weekly plan, lesson log, homework, coverage/expected/status | TPR-01…13 | ✅ |
 | 9 | **Salaries** | Salary settings, monthly rows, mark paid, My Salary, net | SAL-01…06 | ✅ |
@@ -131,12 +131,14 @@ action and don't depend on the scheduler.
 2. Run the migrations against Supabase (step 2 above), then the seed script once for the owner.
 3. Deploy. The owner opens the setup link, then adds classes, subjects, teachers and students.
 
+Existing installations should apply `0004_student_fee_rates.sql` before deploying the student fee screens. It copies inherited class rates to student records while preserving existing individual rates and previously billed amounts.
+
 ## Quality
 
 ```bash
 npm run typecheck   # strict TypeScript
 npm run lint
-npm test            # 42 tests on a real in-memory Postgres
+npm test            # tests backed by in-memory Postgres
 ```
 
 The suite covers the PRD/SRS acceptance tests: exact finance totals (222,000 / 176,500 / 45,500 / 79.5 %),

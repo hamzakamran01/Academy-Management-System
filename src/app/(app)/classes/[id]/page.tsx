@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, SectionTitle } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/data";
 import { EmptyState } from "@/components/ui/feedback";
-import { formatMoney } from "@/lib/format";
 import { isStaffAdmin } from "@/lib/roles";
 import { requireCtx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
@@ -54,12 +53,9 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
         }
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3">
         <StatTile label="Students" value={studentCount} icon={Users} />
         <StatTile label="Subjects" value={cls.subjects.length} icon={BookOpen} tone="info" />
-        {cls.monthlyFee !== undefined && (
-          <StatTile label="Monthly fee" value={cls.monthlyFee != null ? formatMoney(cls.monthlyFee) : "Not set"} icon={Wallet} tone="success" href={ctx.role === "super_admin" ? "/fees/settings" : undefined} className="col-span-2 lg:col-span-1" />
-        )}
       </div>
 
       <nav className="no-scrollbar -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" aria-label="Class sections">

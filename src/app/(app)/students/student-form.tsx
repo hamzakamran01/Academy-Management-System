@@ -2,7 +2,7 @@
 
 import { Check, Plus, Trash2, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StickyActions } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -26,6 +26,7 @@ export type StudentFormValues = {
   classId: string;
   rollNo: string;
   excluded: string[];
+  monthlyFee: string;
   parents: Parent[];
 };
 
@@ -44,6 +45,7 @@ export function StudentForm({
   classes,
   today,
   academyName,
+  canSetFee = false,
 }: {
   mode: "add" | "edit";
   studentId?: string;
@@ -51,9 +53,17 @@ export function StudentForm({
   classes: ClassOption[];
   today: string;
   academyName: string;
+  canSetFee?: boolean;
 }) {
   const router = useRouter();
   const { run, busy, fields } = useMutation();
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!Object.keys(fields).length) return;
+    const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    invalid?.focus({ preventScroll: true });
+    invalid?.scrollIntoView({ block: "center" });
+  }, [fields]);
   const [v, setV] = useState<StudentFormValues>({
     name: "",
     guardianName: "",
@@ -65,6 +75,7 @@ export function StudentForm({
     classId: classes.length === 1 ? classes[0]!.id : "",
     rollNo: "",
     excluded: [],
+    monthlyFee: "",
     parents: [{ phone: "", name: "", relation: "father" }],
     ...initial,
   });
@@ -94,6 +105,7 @@ export function StudentForm({
               classId: v.classId,
               rollNo: v.rollNo || null,
               excludedClassSubjectIds: v.excluded,
+              ...(canSetFee && v.monthlyFee.trim() ? { monthlyFee: Number(v.monthlyFee) } : {}),
               parents: v.parents.filter((p) => p.phone.trim()).map((p) => ({ phone: p.phone, name: p.name || null, relation: p.relation })),
             },
           }),
@@ -131,12 +143,12 @@ export function StudentForm({
   const err = (k: string) => fields[k];
 
   return (
-    <form onSubmit={submit} className="space-y-4 pb-24 lg:pb-0" noValidate>
+    <form ref={formRef} onSubmit={submit} className="space-y-4 pb-16 lg:pb-0" noValidate>
       <Card>
         <CardHeader title="Student" />
         <CardBody className="space-y-4">
           <Field label="Full name" required error={err("name")}>
-            {(p) => <Input {...p} value={v.name} onChange={(e) => set("name", e.target.value)} autoComplete="off" autoFocus={mode === "add"} />}
+            {(p) => <Input {...p} value={v.name} onChange={(e) => set("name", e.target.value)} autoComplete="off" />}
           </Field>
           <Field label="Father's / guardian's name" required error={err("guardianName")}>
             {(p) => <Input {...p} value={v.guardianName} onChange={(e) => set("guardianName", e.target.value)} autoComplete="off" />}
@@ -225,6 +237,19 @@ export function StudentForm({
 
       {mode === "add" && (
         <Card>
+          <CardHeader title="Monthly fee" />
+          <CardBody>
+            {canSetFee ? (
+              <Field label="Amount (Rs)" required error={err("monthlyFee")} hint="Enter 0 for a full scholarship.">
+                {(props) => <Input {...props} type="number" inputMode="numeric" min={0} max={10000000} step={1} value={v.monthlyFee} onChange={(event) => set("monthlyFee", event.target.value)} />}
+              </Field>
+            ) : <p className="text-sm text-muted">The academy owner sets the monthly amount before the first payment record is created.</p>}
+          </CardBody>
+        </Card>
+      )}
+
+      {mode === "add" && (
+        <Card>
           <CardHeader
             title="Parents"
             description="A parent who already has a child here is linked automatically — no duplicate account."
@@ -288,6 +313,7 @@ export function StudentForm({
       {links.length > 0 && (
         <SetupLinkSheet
           info={links[0]!}
+          continueLabel={links.length > 1 ? "Next parent" : "View student"}
           academyName={academyName}
           onClose={() => {
             const rest = links.slice(1);

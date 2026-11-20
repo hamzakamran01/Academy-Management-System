@@ -19,7 +19,7 @@ export default async function MorePage() {
   const groups = MENU[ctx.role].map((g) => ({ ...g, items: g.items.filter((i) => !onBar.has(i.href)) })).filter((g) => g.items.length);
   return (
     <>
-      <PageHeader title="More" />
+      <PageHeader title="More" subtitle={ctx.role === "super_admin" ? "Manage your academy and account" : undefined} />
       <Link href="/profile" className="mb-6 flex items-center gap-4 rounded-xl border border-border bg-surface p-4 shadow-card hover:bg-surface-2">
         <Avatar name={ctx.name} size="lg" />
         <div className="min-w-0 flex-1">
@@ -35,17 +35,18 @@ export default async function MorePage() {
         {groups.map((group) => (
           <section key={group.label}>
             <SectionTitle>{group.label}</SectionTitle>
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            <ul className={ctx.role === "super_admin" ? "grid gap-2 sm:grid-cols-2 xl:grid-cols-3" : "grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6"}>
               {group.items.map(({ href, label, icon: Icon }) => (
                 <li key={href} className="min-w-0">
                   <Link
                     href={href}
-                    className="flex h-full min-h-24 min-w-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-border bg-surface px-1.5 py-3 text-center shadow-card transition-[background-color,transform] hover:bg-surface-2 active:scale-[0.97] active:bg-surface-3"
+                    className={ctx.role === "super_admin" ? "flex min-h-14 items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 shadow-card transition-colors hover:bg-surface-2" : "flex h-full min-h-24 min-w-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-border bg-surface px-1.5 py-3 text-center shadow-card transition-[background-color,transform] hover:bg-surface-2 active:scale-[0.97] active:bg-surface-3"}
                   >
                     <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-fg">
                       <Icon className="size-5" aria-hidden />
                     </span>
-                    <span className="w-full text-[12px] font-medium leading-tight tracking-tight [overflow-wrap:break-word]">{label}</span>
+                    <span className={ctx.role === "super_admin" ? "min-w-0 flex-1 text-sm font-medium" : "w-full text-[12px] font-medium leading-tight tracking-tight [overflow-wrap:break-word]"}>{label}</span>
+                    {ctx.role === "super_admin" && <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />}
                   </Link>
                 </li>
               ))}

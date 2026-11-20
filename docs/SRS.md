@@ -196,9 +196,9 @@ Conventions: every table has `id` (UUID v7), `academy_id`, `created_at`, `update
 
 **homework** — `class_subject_id`, `lesson_log_id?`, `title`, `details?`, `due_date`, `attachment_keys` (text[]), `created_by`.
 
-**class_fees** — `class_id`, `monthly_fee` (int ≥ 0), `set_by`, `set_at`. One row per class (history in activity log).
+**class_fees** — `class_id`, `monthly_fee` (int ≥ 0), `set_by`, `set_at`. Legacy values used for the student fee migration.
 
-**student_fees** — `student_id`, `monthly_fee` (int ≥ 0), `note?`, `set_by`, `set_at`. Optional; absence = use class fee.
+**student_fees** — `student_id`, `monthly_fee` (int ≥ 0), `note?`, `set_by`, `set_at`. Absence indicates that the Super Admin still needs to set a fee.
 
 **fee_rows** — `student_id`, `class_id` (class at creation), `month` (date, first day of month), `amount` (int ≥ 0, snapshot), `status` (unpaid | paid | waived), `marked_by?`, `marked_at?`, `note?`, `waive_reason?`, `version`. **Unique (`student_id`, `month`).**
 
@@ -226,7 +226,7 @@ class_subject 1─* book 1─* chapter 1─* topic
 class_subject 1─* weekly_plan 1─* weekly_plan_topics *─1 topic
 class_subject 1─* lesson_log 1─* lesson_log_topics *─1 topic
 class_subject 1─* topic_progress
-class 1─1 class_fees ;  student 0..1─1 student_fees ;  student 1─* fee_rows
+student 0..1─1 student_fees ;  student 1─* fee_rows
 user 1─* salary_settings ;  user 1─* salary_rows
 ```
 
@@ -256,7 +256,7 @@ For a teacher in the current academic year:
 ### 5.4 Field-level restrictions (DTO rules)
 | Data | Super Admin | Admin | Teacher | Parent |
 |---|---|---|---|---|
-| `fee_rows.amount`, class/student fee amounts | ✔︎ | ✔︎ read | ✘ (field omitted) | ✔︎ own children |
+| `fee_rows.amount`, student fee amounts | ✔︎ | ✔︎ read | ✘ (field omitted) | ✔︎ own children |
 | Revenue aggregates (expected / recovered / pending Rs) | ✔︎ | ✘ (endpoint 403) | ✘ | ✘ |
 | `salary_*` | ✔︎ all | ✘ (endpoint 403; no salary fields on any user DTO) | ✔︎ own only via `/me/salary` | ✘ |
 | Activity log entries with `sensitivity` ≠ normal | ✔︎ | ✘ (filtered out) | ✘ | ✘ |
@@ -278,7 +278,7 @@ For a teacher in the current academic year:
 | Edit syllabus | super_admin, admin; teacher for own class_subjects only if setting `teacher_can_edit_syllabus` |
 | Create/edit weekly plan, lesson log, homework | teacher for own class_subjects (lesson log edit ≤ 48 h after `date` end); super_admin/admin any time (logged) |
 | Comment on weekly plan | super_admin, admin |
-| Set class fee / student fee / waive fee row | super_admin |
+| Set student fee / waive fee row | super_admin |
 | Mark fee row paid/unpaid | super_admin, admin; teacher if student ∈ teacher-visible students (§5.2) and fee row's month ≤ current month |
 | View fee rows | super_admin, admin (with amounts); teacher (visible students, no amounts); parent (own children, with amounts) |
 | Set salary / mark salary paid | super_admin |
@@ -304,7 +304,7 @@ Business rules are numbered `BR-<module>-nn` and are testable.
 
 ### 6.2 Academy Setup (FR-ORG-*)
 - **BR-ORG-01** Exactly one academic year is current. Making a year current is a Super Admin/Admin action and does not change data of the old year (old year becomes read-only for teachers; admins can still view and export).
-- **BR-ORG-02** "Copy from previous year" copies classes (names, levels, shifts, class teachers), class_subjects, open teacher assignments, class fees, and the full syllabus tree (books, chapters with target dates shifted by whole years, topics). It does **not** copy enrollments (use promotion), attendance, marks, plans, logs, or fee rows.
+- **BR-ORG-02** "Copy from previous year" copies classes (names, levels, shifts, class teachers), class_subjects, open teacher assignments and the full syllabus tree (books, chapters with target dates shifted by whole years, topics). It does **not** copy enrollments (use promotion), attendance, marks, plans, logs, or fee rows.
 - **BR-ORG-03** Removing (archiving) a class is rejected with error `CLASS_HAS_STUDENTS` and the count, if any open enrollment exists.
 - **BR-ORG-04** Changing a class-subject's teacher closes the open assignment (`to_date = yesterday`) and opens a new one from today; plans and logs keep their original `teacher_id`.
 - **BR-ORG-05** Working day check `is_working_day(date)` = weekday ∈ year.working_days AND date not within any holiday AND date within year start/end.
@@ -384,10 +384,10 @@ Business rules are numbered `BR-<module>-nn` and are testable.
   These are shown separately; no combined score in R1.
 
 ### 6.7 Fee Tracking (FR-FEE-*)
-- **BR-FEE-01** Effective fee(student, at time t) = `student_fees.monthly_fee` if a row exists, else `class_fees.monthly_fee` for the student's current class; if neither exists → 0 and the student is flagged "Fee not set" on Super Admin screens.
-- **BR-FEE-02** Monthly generation for month M (job on the 1st at 00:05 PKT, or manual trigger): for every student with an enrollment covering the first day of M, or starting within M if `fee_row_on_join` applies, insert a fee row (`status = unpaid`, `amount = effective fee now`, `class_id = current class`) using `INSERT … ON CONFLICT (student_id, month) DO NOTHING`. The job reports created/skipped counts.
-- **BR-FEE-03** Mid-month join/re-admit: if `fee_row_on_join` is on and no row exists for the current month, create it at join time with the full effective fee.
-- **BR-FEE-04** Fee change by Super Admin (class or student): affects rows created afterwards. If "also update this month" is ticked, update `amount` of the current month's rows that are **unpaid** for the affected students; paid and waived rows never change. Logged with sensitivity `finance_amount`.
+- **BR-FEE-01** Use `student_fees.monthly_fee` for each student. Super Admin admissions require the amount. Office-admin admissions appear in the Fee needed filter until configured. Rs 0 is an explicit scholarship amount.
+- **BR-FEE-02** Monthly generation for month M (job on the 1st at 00:05 PKT, or manual trigger): for every student with a configured fee and an enrollment covering the first day of M, or starting within M if `fee_row_on_join` applies, insert a fee row (`status = unpaid`, `amount = effective fee now`, `class_id = current class`) using `INSERT … ON CONFLICT (student_id, month) DO NOTHING`. The job reports created/skipped counts.
+- **BR-FEE-03** Mid-month join/re-admit: if the student has a configured fee, `fee_row_on_join` is on and no row exists for the current month, create it at join time with the full effective fee.
+- **BR-FEE-04** Student fee change by Super Admin: affects rows created afterwards. If "also update this month" is ticked, update `amount` of the current month's rows that are **unpaid** for the affected students; paid and waived rows never change. Logged with sensitivity `finance_amount`.
 - **BR-FEE-05** Mark paid/unpaid: transition unpaid ↔ paid; sets/clears `marked_by`, `marked_at`; optimistic `version`. Waived rows can be changed only by Super Admin (waived → unpaid un-waives). Each transition writes an activity log entry. Marking is allowed for months ≤ current month only.
 - **BR-FEE-06** Parent notification on paid (setting `notify_parent_on_paid`, default on). If marked back to unpaid within 5 minutes, the pending push is cancelled if not yet sent.
 - **BR-FEE-07** Counts for class C and month M (any role with access): `paid`, `unpaid`, `waived`, `total` over fee rows with `class_id = C` and `month = M`. "Remaining" = `unpaid`.
@@ -509,7 +509,7 @@ Conventions: cookie session auth; `Content-Type: application/json`; errors as `{
 | Attendance | `GET /classes/{id}/attendance?date=` · `PUT /classes/{id}/attendance?date=` · `GET /students/{id}/attendance?from=&to=` · `GET /attendance/today` (SA, A) · `GET /classes/{id}/attendance/register?month=` |
 | Results | `GET /assessments?classSubjectId=&status=` · `POST /assessments` · `POST /exam-groups` · `GET/PATCH /assessments/{id}` · `PUT /assessments/{id}/marks` · `POST /assessments/{id}/publish` · `POST /assessments/{id}/unlock` · `POST /assessments/{id}/correction-request` · `GET /students/{id}/results` · `GET /classes/{id}/result-sheet?examGroupId=|classSubjectId=` |
 | Progress | `GET/PUT /class-subjects/{id}/syllabus` · `POST /class-subjects/{id}/syllabus/copy-to` · `POST /class-subjects/{id}/syllabus/import` · `GET /class-subjects/{id}/progress` · `GET/PUT /weekly-plans?classSubjectId=&week=` · `POST /weekly-plans/{id}/submit` · `POST /weekly-plans/{id}/copy-to` · `POST /weekly-plans/{id}/comments` · `GET/PUT /class-subjects/{id}/lesson-logs?date=` · `GET/POST /homework` · `GET /students/{id}/this-week` · `GET /progress/dashboard` (SA, A) · `GET /teachers/{id}/progress-summary?period=` (SA, A, self) |
-| Fees | `GET/PUT /classes/{id}/fee` (SA) · `GET/PUT/DELETE /students/{id}/fee` (SA) · `GET /fees/rows?classId=&month=&status=` (SA, A, T*) · `POST /fees/rows/{id}/paid` · `POST /fees/rows/{id}/unpaid` · `POST /fees/rows/{id}/waive` (SA) · `POST /fees/generate?month=` (SA, A) · `GET /fees/overview?month=` (SA, A — counts) · `GET /fees/unpaid-multiple` (SA, A) · `GET /finance/summary?month=` (SA) · `GET /finance/trend?months=12` (SA) · `GET /students/{id}/fees` (SA, A, P) |
+| Fees | `PUT /students/{id}/fee` (SA) · `GET /fees/rows?classId=&month=&status=` (SA, A, T*) · `POST /fees/rows/{id}/paid` · `POST /fees/rows/{id}/unpaid` · `POST /fees/rows/{id}/waive` (SA) · `POST /fees/generate?month=` (SA, A) · `GET /fees/overview?month=` (SA, A — counts) · `GET /fees/unpaid-multiple` (SA, A) · `GET /finance/summary?month=` (SA) · `GET /finance/trend?months=12` (SA) · `GET /students/{id}/fees` (SA, A, P) |
 | Salaries | `GET /salaries?month=` (SA) · `PUT /users/{id}/salary` (SA) · `POST /salaries/rows/{id}/paid` (SA) · `POST /salaries/rows/{id}/pending` (SA) · `GET /me/salary` (self) |
 | Notify | `GET/POST /announcements` · `GET /notifications` · `POST /notifications/read` · `POST /push/subscribe` · `DELETE /push/subscribe` · `GET/PUT /me/notification-preferences` |
 | Dashboards | `GET /dashboard/super-admin` · `GET /dashboard/admin` · `GET /dashboard/teacher` · `GET /dashboard/parent?studentId=` · `GET /people-status` (SA) |

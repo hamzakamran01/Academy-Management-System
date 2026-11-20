@@ -19,10 +19,12 @@ export function SetupLinkSheet({
   info,
   academyName,
   onClose,
+  continueLabel,
 }: {
   info: SetupLinkInfo | null;
   academyName: string;
   onClose: () => void;
+  continueLabel?: string;
 }) {
   const [copied, setCopied] = useState(false);
   if (!info) return null;
@@ -55,6 +57,7 @@ export function SetupLinkSheet({
       footer={
         info.setupLink ? (
           <>
+            {continueLabel && <Button variant="ghost" onClick={onClose}>{continueLabel}</Button>}
             <Button variant="secondary" onClick={copy}>
               {copied ? <Check aria-hidden /> : <Copy aria-hidden />} {copied ? "Copied" : "Copy link"}
             </Button>

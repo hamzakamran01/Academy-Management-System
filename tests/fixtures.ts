@@ -27,9 +27,8 @@ export async function makeUser(academyId: string, role: Role, name = `${role} us
   return ctx;
 }
 
-export async function makeClass(academyId: string, yearId: string, name: string, opts: { fee?: number; setBy?: string } = {}) {
+export async function makeClass(academyId: string, yearId: string, name: string) {
   const [c] = await db.insert(s.classes).values({ academyId, academicYearId: yearId, name }).returning();
-  if (opts.fee != null) await db.insert(s.classFees).values({ classId: c!.id, monthlyFee: opts.fee, setBy: opts.setBy! });
   return c!;
 }
 

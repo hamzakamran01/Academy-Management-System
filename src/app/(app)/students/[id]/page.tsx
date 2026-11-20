@@ -14,11 +14,12 @@ import { isStaffAdmin } from "@/lib/roles";
 import { requireCtx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
 import { getAcademy } from "@/server/modules/academy";
-import { studentFeeRows } from "@/server/modules/fees";
+import { studentFeeRows, studentFeeSettings } from "@/server/modules/fees";
 import { listClasses } from "@/server/modules/org";
 import { getStudentProfile, studentActivity } from "@/server/modules/students";
 import { studentResults } from "@/server/modules/results";
 import { fmtMark } from "@/lib/grades";
+import { StudentFeeEditor } from "../../fees/settings/fee-settings-client";
 import { ParentRowActions, StudentActions } from "./student-actions";
 
 export const metadata: Metadata = { title: "Student" };
@@ -42,6 +43,7 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
   ];
 
   const [academy, classes] = admin ? await Promise.all([getAcademy(ctx.academyId), listClasses(ctx)]) : [null, []];
+  const [fee] = ctx.role === "super_admin" && tab === "fees" ? await studentFeeSettings(ctx, [id]) : [];
   const taking = s.subjects.filter((x) => !x.excluded);
 
   return (
@@ -167,7 +169,20 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
 
       {tab === "results" && <ResultsTab data={await studentResults(ctx, id)} />}
 
-      {tab === "fees" && <FeesTab ctxRole={ctx.role} rows={await studentFeeRows(ctx, id)} />}
+      {tab === "fees" && (
+        <div className="space-y-4">
+          {ctx.role === "super_admin" && (
+            <Card>
+              <CardHeader title="Monthly fee" description={fee?.note ?? undefined} />
+              <CardBody className="flex flex-wrap items-center justify-between gap-3">
+                {fee ? <span className="tabular text-xl font-bold">{formatMoney(fee.monthlyFee)}</span> : <Badge tone="warning">Fee needed</Badge>}
+                <StudentFeeEditor studentId={id} name={s.name} monthlyFee={fee?.monthlyFee} note={fee?.note} />
+              </CardBody>
+            </Card>
+          )}
+          <FeesTab ctxRole={ctx.role} rows={await studentFeeRows(ctx, id)} />
+        </div>
+      )}
 
       {tab === "history" && admin && <HistoryTab history={s.history} activity={await studentActivity(ctx, id)} />}
     </>

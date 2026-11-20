@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, type Tx } from "@/server/db";
-import { classes, classFees, enrollments, feeRows, studentFees, students, users } from "@/server/db/schema";
+import { academy, classes, enrollments, feeRows, studentFees, students, users } from "@/server/db/schema";
 import type { Ctx } from "@/server/auth/session";
 import { rows as execRows } from "@/server/db/connect";
 import { addMonths, monthEnd, monthStart, todayPkt } from "@/lib/dates";
@@ -11,7 +11,7 @@ import { badRequest, conflict, forbidden, notFound } from "@/server/http";
 import { assertClassVisible, assertStudentVisible, parentStudentIds } from "@/server/policy/scope";
 import { getSettings, requireCurrentYear } from "./academy";
 import { logActivity } from "./audit";
-import { effectiveFee } from "./fee-rows";
+import { ensureFeeRow, openEnrollment } from "./fee-rows";
 import { parentsOf, queueNotifications, withdrawRecent } from "./notify";
 
 /** Amounts are visible to Super Admin, Admin and the student's parents — never teachers (SRS §5.4). */
@@ -22,77 +22,39 @@ const assertOwner = (ctx: Ctx) => {
 const currentMonth = () => monthStart(todayPkt());
 
 // ─── Fee amounts (Super Admin) ──────────────────────────────────────────────
-/** FR-FEE-01 / BR-FEE-04 */
-export async function setClassFee(ctx: Ctx, classId: string, amount: number, alsoThisMonth: boolean) {
+export async function setStudentFee(ctx: Ctx, studentId: string, amount: number, note: string | null, alsoThisMonth: boolean) {
   assertOwner(ctx);
   const month = currentMonth();
+  const settings = alsoThisMonth ? await getSettings(ctx.academyId) : null;
   return db.transaction(async (tx) => {
-    const [cls] = await tx.select({ name: classes.name }).from(classes).where(and(eq(classes.id, classId), eq(classes.academyId, ctx.academyId)));
-    if (!cls) throw notFound("Class");
-    const [before] = await tx.select({ fee: classFees.monthlyFee }).from(classFees).where(eq(classFees.classId, classId));
-    await tx
-      .insert(classFees)
-      .values({ classId, monthlyFee: amount, setBy: ctx.userId })
-      .onConflictDoUpdate({ target: classFees.classId, set: { monthlyFee: amount, setBy: ctx.userId, setAt: new Date() } });
-    let updated = 0;
-    if (alsoThisMonth) {
-      // Only unpaid rows of students without a personal fee follow the class default.
-      const res = await tx
-        .update(feeRows)
-        .set({ amount, version: sql`${feeRows.version} + 1` })
-        .where(
-          and(
-            eq(feeRows.classId, classId),
-            eq(feeRows.month, month),
-            eq(feeRows.status, "unpaid"),
-            sql`not exists (select 1 from ${studentFees} sf where sf.student_id = ${feeRows.studentId})`,
-          ),
-        )
-        .returning({ id: feeRows.id });
-      updated = res.length;
-    }
-    await logActivity(tx, ctx, {
-      action: "fee.class_set",
-      entityType: "class",
-      entityId: classId,
-      summary: `Set ${cls.name} monthly fee to Rs ${amount.toLocaleString("en-PK")}${alsoThisMonth ? ` (also ${updated} unpaid rows this month)` : ""}`,
-      before: { monthlyFee: before?.fee ?? null },
-      after: { monthlyFee: amount, alsoThisMonth, updated },
-      sensitivity: "finance_amount",
-    });
-    return { updated };
-  });
-}
-
-/** FR-FEE-02 / BR-FEE-04: personal fee (null clears it → class default applies). */
-export async function setStudentFee(ctx: Ctx, studentId: string, amount: number | null, note: string | null, alsoThisMonth: boolean) {
-  assertOwner(ctx);
-  const month = currentMonth();
-  return db.transaction(async (tx) => {
+    await tx.select({ id: academy.id }).from(academy).where(eq(academy.id, ctx.academyId)).for("update");
     const [s] = await tx.select({ name: students.name }).from(students).where(and(eq(students.id, studentId), eq(students.academyId, ctx.academyId)));
     if (!s) throw notFound("Student");
     const [before] = await tx.select().from(studentFees).where(eq(studentFees.studentId, studentId));
-    if (amount === null) await tx.delete(studentFees).where(eq(studentFees.studentId, studentId));
-    else
-      await tx
-        .insert(studentFees)
-        .values({ studentId, monthlyFee: amount, note, setBy: ctx.userId })
-        .onConflictDoUpdate({ target: studentFees.studentId, set: { monthlyFee: amount, note, setBy: ctx.userId, setAt: new Date() } });
+    await tx
+      .insert(studentFees)
+      .values({ studentId, monthlyFee: amount, note, setBy: ctx.userId })
+      .onConflictDoUpdate({ target: studentFees.studentId, set: { monthlyFee: amount, note, setBy: ctx.userId, setAt: new Date() } });
 
     let updated = false;
     if (alsoThisMonth) {
-      const [row] = await tx.select().from(feeRows).where(and(eq(feeRows.studentId, studentId), eq(feeRows.month, month)));
-      if (row && row.status === "unpaid") {
-        const eff = await effectiveFee(tx, studentId, row.classId);
-        await tx.update(feeRows).set({ amount: eff.amount, version: sql`${feeRows.version} + 1` }).where(eq(feeRows.id, row.id));
-        updated = true;
+      const changed = await tx.update(feeRows)
+        .set({ amount, version: sql`${feeRows.version} + 1` })
+        .where(and(eq(feeRows.studentId, studentId), eq(feeRows.month, month), eq(feeRows.status, "unpaid")))
+        .returning({ id: feeRows.id });
+      updated = changed.length > 0;
+      if (!updated && !before) {
+        const enrollment = await openEnrollment(tx, studentId);
+        if (enrollment && enrollment.fromDate <= (settings?.feeRowOnJoin ? todayPkt() : month)) {
+          updated = await ensureFeeRow(tx, ctx.academyId, studentId, enrollment.classId, month);
+        }
       }
     }
     await logActivity(tx, ctx, {
-      action: amount === null ? "fee.student_clear" : "fee.student_set",
+      action: "fee.student_set",
       entityType: "student",
       entityId: studentId,
-      summary: amount === null ? `Cleared personal fee of ${s.name}` : `Set personal fee of ${s.name} to Rs ${amount.toLocaleString("en-PK")}`,
+      summary: `Set monthly fee for ${s.name} to Rs ${amount.toLocaleString("en-PK")}`,
       before: before ? { monthlyFee: before.monthlyFee, note: before.note } : null,
       after: { monthlyFee: amount, note, alsoThisMonth, updated },
       sensitivity: "finance_amount",
@@ -112,17 +74,17 @@ export async function generateMonthRows(academyId: string, month: string, actor:
   const settings = await getSettings(academyId);
   const end = monthEnd(month);
   return db.transaction(async (tx) => {
+    // Serialize generation with rate edits so a new snapshot uses the committed rate.
+    await tx.select({ id: academy.id }).from(academy).where(eq(academy.id, academyId)).for("update");
     const created = await execRows<{ id: string }>(
       tx as never,
       sql`
         insert into fee_rows (academy_id, student_id, class_id, month, amount)
         select distinct on (s.id) s.academy_id, s.id, e.class_id, ${month}::date,
-               coalesce(sf.monthly_fee, cf.monthly_fee, 0)
+               sf.monthly_fee
         from students s
         join enrollments e on e.student_id = s.id
-        join classes c on c.id = e.class_id
-        left join student_fees sf on sf.student_id = s.id
-        left join class_fees cf on cf.class_id = e.class_id
+        join student_fees sf on sf.student_id = s.id
         where s.academy_id = ${academyId}
           and e.from_date <= ${settings.feeRowOnJoin ? end : month}::date
           and (e.to_date is null or e.to_date >= ${month}::date)
@@ -392,13 +354,12 @@ export async function financeSummary(ctx: Ctx, month: string) {
     // FR-FEE-11: revenue at current fees (not tied to rows)
     db
       .select({
-        total: sql<number>`coalesce(sum(coalesce(sf.monthly_fee, cf.monthly_fee, 0)), 0)::int`,
-        notSet: sql<number>`count(*) filter (where sf.monthly_fee is null and cf.monthly_fee is null)::int`,
+        total: sql<number>`coalesce(sum(sf.monthly_fee), 0)::int`,
+        notSet: sql<number>`count(*) filter (where sf.monthly_fee is null)::int`,
       })
       .from(students)
       .innerJoin(enrollments, and(eq(enrollments.studentId, students.id), isNull(enrollments.toDate)))
       .leftJoin(sql`${studentFees} sf`, sql`sf.student_id = ${students.id}`)
-      .leftJoin(sql`${classFees} cf`, sql`cf.class_id = ${enrollments.classId}`)
       .where(and(eq(students.academyId, a), eq(students.status, "active"))),
     db
       .select({
@@ -454,44 +415,17 @@ export async function financeTrend(ctx: Ctx, months = 12) {
   return out;
 }
 
-/** Fee settings screen data (Super Admin). */
-export async function feeSettingsData(ctx: Ctx) {
+/** Configured rates for students already scoped by the directory or profile. */
+export async function studentFeeSettings(ctx: Ctx, studentIds: string[]) {
   assertOwner(ctx);
-  const year = await requireCurrentYear(ctx.academyId);
-  const [cls, personal] = await Promise.all([
-    db
-      .select({
-        id: classes.id,
-        name: classes.name,
-        monthlyFee: classFees.monthlyFee,
-        students: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null)`,
-      })
-      .from(classes)
-      .leftJoin(classFees, eq(classFees.classId, classes.id))
-      .where(and(eq(classes.academicYearId, year.id), isNull(classes.archivedAt)))
-      .orderBy(asc(classes.level), asc(classes.name)),
-    db
-      .select({
-        studentId: students.id,
-        name: students.name,
-        registrationNo: students.registrationNo,
-        monthlyFee: studentFees.monthlyFee,
-        note: studentFees.note,
-        className: classes.name,
-        classFee: classFees.monthlyFee,
-      })
-      .from(studentFees)
-      .innerJoin(students, eq(students.id, studentFees.studentId))
-      .leftJoin(enrollments, and(eq(enrollments.studentId, students.id), isNull(enrollments.toDate)))
-      .leftJoin(classes, eq(classes.id, enrollments.classId))
-      .leftJoin(classFees, eq(classFees.classId, enrollments.classId))
-      .where(and(eq(students.academyId, ctx.academyId), ne(students.status, "removed")))
-      .orderBy(asc(students.name)),
-  ]);
-  return { classes: cls, personal };
+  if (!studentIds.length) return [];
+  return db.select({ studentId: studentFees.studentId, monthlyFee: studentFees.monthlyFee, note: studentFees.note })
+    .from(studentFees)
+    .innerJoin(students, eq(students.id, studentFees.studentId))
+    .where(and(eq(students.academyId, ctx.academyId), inArray(studentFees.studentId, studentIds)));
 }
 
-/** Months offered in pickers: academic-year start (or 11 months back) … current month. */
+/** Months offered in pickers, from the academic-year start or 11 months back through the current month. */
 export async function monthOptions(academyId: string): Promise<string[]> {
   const year = await requireCurrentYear(academyId);
   const cur = currentMonth();

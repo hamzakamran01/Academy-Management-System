@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zDate, zId, zName } from "./validation";
+import { zDate, zId, zName, zRupees } from "./validation";
 
 /** Request schemas shared between client forms and API routes. */
 export const classSchema = z.object({
@@ -27,11 +27,12 @@ export const studentSchema = z.object({
   classId: zId,
   rollNo: z.string().trim().max(10).optional().nullable(),
   excludedClassSubjectIds: z.array(zId).max(30).optional(),
+  monthlyFee: zRupees.optional(),
   parents: z.array(parentSchema).min(1, "Add at least one parent").max(2, "At most 2 parents"),
 });
 
 export const studentUpdateSchema = studentSchema
-  .omit({ classId: true, parents: true, rollNo: true })
+  .omit({ classId: true, parents: true, rollNo: true, monthlyFee: true })
   .partial()
   .extend({ rollNo: z.string().trim().min(1).max(10).optional() });
 

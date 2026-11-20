@@ -10,6 +10,7 @@ import {
   parentLinks,
   registrationCounters,
   studentSubjectExclusions,
+  studentFees,
   students,
   subjects,
   users,
@@ -92,6 +93,7 @@ export type StudentInput = {
   classId: string;
   rollNo?: string | null;
   excludedClassSubjectIds?: string[];
+  monthlyFee?: number;
   parents: ParentInput[];
 };
 
@@ -128,6 +130,10 @@ async function setExclusions(tx: Tx, enrollmentId: string, classId: string, excl
 /** BR-STU-03 — one transaction. Returns setup links for newly created parents. */
 export async function addStudent(ctx: Ctx, input: StudentInput) {
   assertAdmin(ctx);
+  if (input.monthlyFee !== undefined && ctx.role !== "super_admin") throw forbidden("Only the owner can set student fees");
+  if (ctx.role === "super_admin" && input.monthlyFee === undefined) {
+    throw badRequest("FEE_REQUIRED", "Enter the monthly fee", { fields: { monthlyFee: "Enter a monthly fee or 0 for a full scholarship" } });
+  }
   if (!input.parents.length) throw badRequest("PARENT_REQUIRED", "Add at least one parent phone", { fields: { "parents.0.phone": "Add at least one parent phone" } });
   const [settings, year] = await Promise.all([getSettings(ctx.academyId), requireCurrentYear(ctx.academyId)]);
   const today = todayPkt();
@@ -159,6 +165,18 @@ export async function addStudent(ctx: Ctx, input: StudentInput) {
       .returning();
     await setExclusions(tx, enr!.id, cls.id, input.excludedClassSubjectIds ?? []);
     const accounts = await linkParents(tx, ctx, s.id, s.guardianName, input.parents);
+
+    if (input.monthlyFee !== undefined) {
+      await tx.insert(studentFees).values({ studentId: s.id, monthlyFee: input.monthlyFee, setBy: ctx.userId });
+      await logActivity(tx, ctx, {
+        action: "fee.student_set",
+        entityType: "student",
+        entityId: s.id,
+        summary: `Set monthly fee for ${s.name} at admission`,
+        after: { monthlyFee: input.monthlyFee },
+        sensitivity: "finance_amount",
+      });
+    }
 
     if (settings.feeRowOnJoin && input.admissionDate <= today) {
       await ensureFeeRow(tx, ctx.academyId, s.id, cls.id, monthStart(today));
@@ -378,7 +396,7 @@ export type StudentListItem = {
 
 export async function listStudents(
   ctx: Ctx,
-  f: { q?: string; classId?: string; status?: "active" | "removed" | "all"; feeStatus?: "paid" | "unpaid"; limit?: number; offset?: number },
+  f: { q?: string; classId?: string; status?: "active" | "removed" | "all"; feeStatus?: "paid" | "unpaid"; missingFee?: boolean; limit?: number; offset?: number },
 ): Promise<{ items: StudentListItem[]; total: number }> {
   const conds: (SQL | undefined)[] = [eq(students.academyId, ctx.academyId)];
   if (ctx.role === "teacher") {
@@ -387,6 +405,10 @@ export async function listStudents(
     conds.push(inArray(enrollments.classId, ids), eq(students.status, "active"));
   } else if (!isStaffAdmin(ctx.role)) throw forbidden();
 
+  if (f.missingFee) {
+    if (ctx.role !== "super_admin") throw forbidden();
+    conds.push(sql`not exists (select 1 from ${studentFees} sf where sf.student_id = ${students.id})`);
+  }
   const status = f.status ?? "active";
   if (status !== "all" && ctx.role !== "teacher") conds.push(eq(students.status, status));
   if (f.classId) conds.push(eq(enrollments.classId, f.classId));
@@ -432,7 +454,7 @@ export async function listStudents(
 
   const [items, [totalRow]] = await Promise.all([
     base
-      .orderBy(asc(classes.level), asc(classes.name), sql`case when ${enrollments.rollNo} ~ '^[0-9]+$' then lpad(${enrollments.rollNo}, 6, '0') else ${enrollments.rollNo} end`, asc(students.name))
+      .orderBy(asc(classes.level), asc(classes.name), sql`case when ${enrollments.rollNo} ~ '^[0-9]+$' then lpad(${enrollments.rollNo}, 6, '0') else ${enrollments.rollNo} end`, asc(students.name), asc(students.id))
       .limit(Math.min(f.limit ?? 50, 200))
       .offset(f.offset ?? 0),
     db

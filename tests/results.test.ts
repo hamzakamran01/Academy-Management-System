@@ -27,7 +27,7 @@ describe("results", () => {
     teacher = await makeUser(academyId, "teacher", "Physics Teacher");
     other = await makeUser(academyId, "teacher", "Other Teacher");
     parent = await makeUser(academyId, "parent", "Parent");
-    const cls = await makeClass(academyId, yearId, "9-A", { fee: 6000, setBy: owner.userId });
+    const cls = await makeClass(academyId, yearId, "9-A");
     const [sub] = await db.insert(subjects).values({ academyId, name: "Physics" }).returning();
     const [cs] = await db.insert(classSubjects).values({ classId: cls.id, subjectId: sub!.id }).returning();
     await db.insert(classSubjectTeachers).values({ classSubjectId: cs!.id, teacherId: teacher.userId, fromDate: "2026-04-01" });

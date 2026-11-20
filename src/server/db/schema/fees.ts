@@ -6,6 +6,7 @@ import { academy, classes } from "./org";
 import { students } from "./students";
 
 // ─── Fees (money = integer rupees, SRS C4) ──────────────────────────────────
+/** Legacy rates retained for the student fee migration. */
 export const classFees = pgTable(
   "class_fees",
   {

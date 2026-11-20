@@ -64,7 +64,7 @@ Online payments or payment gateways · invoices, receipts, late fines, concessio
 | A3 | One **academic year** is "current" at a time (e.g. Apr 2026 – Mar 2027). |
 | A4 | A **class** is the teaching group students sit in (e.g. "Grade 9 – A", "FSc Part-I Pre-Medical – Evening"). Each class has subjects, and each class-subject has one teacher. |
 | A5 | By default a student studies all subjects of their class; an admin can untick subjects the student doesn't take (common in academies). |
-| A6 | Fees are **monthly**. Each student has one monthly fee amount (class default, or a personal amount set by the Super Admin). |
+| A6 | Fees are **monthly**. Each student has an individual monthly fee amount set by the Super Admin. |
 | A7 | Fee collection happens outside the app (cash/bank/wallet); the app only **tracks status** Paid / Unpaid. |
 | A8 | Everyone has a mobile number; most use Android phones. |
 | A9 | UI language in R1 is English with all text prepared for translation; Urdu interface is R1.1 (names and free text can be typed in Urdu from day one). |
@@ -104,7 +104,7 @@ Legend: ✅ full · 👁 view only · 🔸 only own classes/subjects · 👪 onl
 | Syllabus (book → chapter → topic) | ✅ | ✅ | 🔸 edit (S) / view | 👁 👪 progress only |
 | Weekly plan & lesson log | 👁 + comment | 👁 + comment | 🔸 create/edit | 👁 👪 (topics taught, homework) |
 | Teaching-progress dashboard (all teachers) | ✅ | ✅ | 🙋 own | ❌ |
-| **Set monthly fee** (class default & per student) | ✅ | ❌ | ❌ | ❌ |
+| **Set monthly fee** (per student) | ✅ | ❌ | ❌ | ❌ |
 | See a student's fee **amount** | ✅ | 👁 | ❌ | 👪 |
 | **Mark fee Paid / Unpaid** | ✅ | ✅ (any student) | 🔸 (students of classes they teach) | ❌ |
 | See who paid / not paid, counts remaining | ✅ | ✅ | 🔸 | 👪 own status |
@@ -129,7 +129,7 @@ Legend: ✅ full · 👁 view only · 🔸 only own classes/subjects · 👪 onl
 | Parent | **Home** | **Results** | **Progress** (syllabus & homework) | **Fees** | **More** |
 | Teacher | **Today** | **My Classes** | **Results** | **Fees** | **More** |
 | Admin | **Dashboard** | **Students** | **Classes** | **Fees** | **More** |
-| Super Admin | **Overview** | **Students** | **Finance** | **Teachers** | **More** |
+| Super Admin | **Overview** | **Students** | **Fees** | **Finance** | **More** |
 
 "More" holds: attendance history, announcements, holidays/calendar, reports, settings, profile, role switch, logout.
 On desktop (≥ 1024 px) the same items appear as a left sidebar with wider tables.
@@ -211,7 +211,7 @@ On desktop (≥ 1024 px) the same items appear as a left sidebar with wider tabl
 | FR-ORG-06 | **Assign teacher** to each class-subject (one teacher per class-subject; changing the teacher keeps history of who taught when). | M |
 | FR-ORG-07 | **Remove class:** allowed only when the class has no active students — the screen shows how many students need to be moved first and offers **Move students** to another class. Removed classes are archived (history stays: attendance, results, fees). | M |
 | FR-ORG-08 | Holidays: date or date range with name; visible to all; excluded from attendance and syllabus pace. | M |
-| FR-ORG-09 | Default monthly fee per class — **Super Admin only** (see FEE). | M |
+| FR-ORG-09 | Student fees follow the student across classes (see FEE). | M |
 
 **Acceptance:** *Given* class "9-A" with 35 active students, *when* the admin taps Remove, *then* removal is blocked with "35 students are still in this class — move them first" and a **Move students** button.
 
@@ -323,15 +323,15 @@ On desktop (≥ 1024 px) the same items appear as a left sidebar with wider tabl
 ### 6.7 Fee Tracking (FEE)
 
 **How it works (simple and clear):**
-1. **Super Admin sets fees.** Each class has a **default monthly fee**. The Super Admin can set a **personal monthly fee** for any student (e.g. discount, sibling, scholarship = Rs 0). The student's **effective fee** = personal fee if set, otherwise class default.
+1. **Super Admin sets fees.** The Super Admin enters the student's individual monthly fee on admission. For office-admin admissions, the Super Admin sets it afterward. Monthly fee records require a configured fee. Enter Rs 0 for a full scholarship.
 2. **Monthly fee rows are created automatically.** On the 1st of every month, each active student gets a fee row for that month with status **Unpaid** and the amount = their effective fee at that moment. A student added mid-month gets a row for the current month too (setting).
 3. **Teachers and admins mark Paid.** When a student brings the fee, the teacher (in class) or admin taps **Paid**. The app stores who marked it and when. Tapping again sets it back to Unpaid (logged).
 4. **Everyone sees the right view.** Teachers: who has paid / not in their classes and how many remain (no amounts). Admin: same for all classes, plus each student's amount (read-only). Parent: their child's month-by-month status and amount. **Super Admin: all of it plus money totals.**
 
 | ID | Requirement | Pri |
 |---|---|---|
-| FR-FEE-01 | **Class default monthly fee** — set/edit by Super Admin only. | M |
-| FR-FEE-02 | **Personal monthly fee** per student — set/edit/clear by Super Admin only, with optional note (e.g. "Sibling discount"). | M |
+| FR-FEE-01 | **Fee at admission** — Super Admin enters the monthly fee in the admission form. | M |
+| FR-FEE-02 | **Individual monthly fee** per student — set/edit by Super Admin only, with optional note (e.g. "Sibling discount"). | M |
 | FR-FEE-03 | Fee changes apply from the **next** month's rows. Option (Super Admin) "also update this month if still Unpaid". Paid rows are never changed. | M |
 | FR-FEE-04 | **Automatic monthly rows** on the 1st at 00:05 for all active students; safe to re-run (never duplicates). Super Admin/Admin can also trigger "Create this month's fee list" manually. | M |
 | FR-FEE-05 | Mid-month admission: create current-month row (setting, default **on**). Removed student: no rows for later months; existing rows stay. | M |
@@ -346,7 +346,7 @@ On desktop (≥ 1024 px) the same items appear as a left sidebar with wider tabl
 | FR-FEE-14 | Exports: class fee list, unpaid list, monthly finance summary (Super Admin) — PDF/Excel. | M |
 
 **Acceptance:**
-- Class 9-A default Rs 6,000; student Ali has personal fee Rs 4,500 → Ali's November row = Rs 4,500.
+- Ali’s individual monthly fee is Rs 4,500, so his November row records Rs 4,500.
 - 40 active students with effective fees totalling Rs 228,000; 31 marked Paid totalling Rs 176,500; 1 Waived (Rs 6,000) → Expected **Rs 222,000**, Recovered **Rs 176,500**, Pending **Rs 45,500**, Recovery **79.5%**.
 - Running the monthly job twice creates no duplicate rows.
 - A teacher's API response for the fee list contains **no amounts**.
@@ -417,7 +417,7 @@ On desktop (≥ 1024 px) the same items appear as a left sidebar with wider tabl
 
 **J5 — Student leaves.** Admin → student → **Remove** → reason "Left", date → warning shows 1 unpaid month → confirm → student leaves all active lists; history stays; parent read-only for 30 days.
 
-**J6 — New academic year.** Super Admin/Admin creates new year (copy classes, subjects, teachers, syllabus) → **Promote** wizard per class → Super Admin reviews class fees for the new year.
+**J6 — New academic year.** Super Admin/Admin creates new year (copy classes, subjects, teachers, syllabus) → **Promote** wizard per class → Super Admin reviews individual student fees if rates are changing for the new year.
 
 ---
 
@@ -485,7 +485,7 @@ All Admin screens, plus:
 |---|---|
 | S-01 | Overview |
 | S-02 | Finance (month summary, by class, trend, unpaid with amounts, net) |
-| S-03 | Fee settings (class defaults, personal fees, waive) |
+| S-03 | Student fees (individual rates) |
 | S-04 | Salaries (set salary, monthly paid/pending, totals) |
 | S-05 | People status (admins, teachers, students, parents) |
 | S-06 | Admin accounts |
@@ -582,7 +582,7 @@ All Admin screens, plus:
 | Class | Teaching group (e.g. "9-A Morning"). |
 | Class-subject | A subject taught in a class by one teacher. |
 | Class teacher | Teacher in charge of a class (marks daily attendance). |
-| Effective fee | Student's personal monthly fee if set, otherwise the class default. |
+| Effective fee | Student's configured monthly fee. |
 | Fee row | One student's fee for one month: amount + Paid/Unpaid/Waived. |
 | Expected revenue | Sum of a month's fee rows, excluding Waived. |
 | Recovered | Sum of Paid rows. |

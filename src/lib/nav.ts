@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
+  CircleDollarSign,
   FileBarChart,
   GraduationCap,
   History,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import type { Role } from "./roles";
 
-export type NavItem = { href: string; label: string; icon: LucideIcon; match?: string[] };
+export type NavItem = { exclude?: string[]; href: string; label: string; icon: LucideIcon; match?: string[] };
 export type NavGroup = { label: string; items: NavItem[] };
 
 const more: NavItem = { href: "/more", label: "More", icon: LayoutGrid };
@@ -56,8 +57,8 @@ export const BOTTOM_NAV: Record<Role, NavItem[]> = {
   super_admin: [
     { href: "/home", label: "Overview", icon: LayoutDashboard },
     { href: "/students", label: "Students", icon: UsersRound },
-    { href: "/finance", label: "Finance", icon: Banknote, match: ["/fees", "/salaries"] },
-    { href: "/teachers", label: "Teachers", icon: Users },
+    { href: "/fees", label: "Fees", icon: Wallet },
+    { href: "/finance", label: "Finance", icon: Banknote, match: ["/salaries"] },
     more,
   ],
 };
@@ -79,13 +80,17 @@ const academics: NavItem[] = [
 export const MENU: Record<Role, NavGroup[]> = {
   super_admin: [
     { label: "Home", items: [{ href: "/home", label: "Overview", icon: LayoutDashboard }] },
+    { label: "Daily work", items: [
+      { href: "/students", label: "Students", icon: UsersRound },
+      { href: "/fees", label: "Collect fees", icon: Wallet, exclude: ["/fees/settings"] },
+    ] },
     { label: "Money", items: [
       { href: "/finance", label: "Finance", icon: Banknote },
-      { href: "/fees", label: "Fee status", icon: Wallet },
+      { href: "/fees/settings", label: "Student fees", icon: CircleDollarSign },
       { href: "/salaries", label: "Salaries", icon: Banknote },
     ] },
     { label: "Academics", items: academics },
-    { label: "People", items: [...people("super_admin"), { href: "/people-status", label: "People status", icon: BarChart3 }] },
+    { label: "People", items: [...people("super_admin").filter((item) => item.href !== "/students"), { href: "/people-status", label: "People status", icon: BarChart3 }] },
     { label: "Communication", items: [{ href: "/announcements", label: "Announcements", icon: Megaphone }, { href: "/notifications", label: "Notifications", icon: Bell }] },
     { label: "Academy", items: [
       { href: "/calendar", label: "Year & holidays", icon: CalendarDays },
@@ -142,5 +147,6 @@ export const MENU: Record<Role, NavGroup[]> = {
 
 export function isActive(pathname: string, item: NavItem): boolean {
   const hit = (p: string) => pathname === p || pathname.startsWith(p + "/");
+  if (item.exclude?.some(hit)) return false;
   return hit(item.href) || (item.match ?? []).some(hit);
 }

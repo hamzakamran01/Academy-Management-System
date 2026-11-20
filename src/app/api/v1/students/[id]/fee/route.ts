@@ -10,7 +10,3 @@ export const PUT = route<{ id: string }>(async (req, { id }) => {
   const b = await parseBody(req, schema);
   return setStudentFee(await apiCtx(), id, b.monthlyFee, b.note, b.alsoThisMonth);
 });
-export const DELETE = route<{ id: string }>(async (req, { id }) => {
-  const b = await parseBody(req, z.object({ alsoThisMonth: z.boolean().default(false) }));
-  return setStudentFee(await apiCtx(), id, null, null, b.alsoThisMonth);
-});

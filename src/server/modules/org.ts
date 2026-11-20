@@ -6,7 +6,6 @@ import { db } from "@/server/db";
 import {
   academicYears,
   classes,
-  classFees,
   classSubjects,
   classSubjectTeachers,
   enrollments,
@@ -204,11 +203,9 @@ export async function getClassDetail(ctx: Ctx, id: string) {
       shift: classes.shift,
       archivedAt: classes.archivedAt,
       academicYearId: classes.academicYearId,
-      monthlyFee: classFees.monthlyFee,
       studentCount: sql<number>`(select count(*)::int from ${enrollments} e where e.class_id = "classes"."id" and e.to_date is null)`,
     })
     .from(classes)
-    .leftJoin(classFees, eq(classFees.classId, classes.id))
     .where(and(eq(classes.id, id), eq(classes.academyId, ctx.academyId)));
   if (!cls) throw notFound("Class");
 
@@ -232,12 +229,9 @@ export async function getClassDetail(ctx: Ctx, id: string) {
     .where(and(eq(classSubjects.classId, id), isNull(classSubjects.archivedAt)))
     .orderBy(asc(subjects.name));
 
-  // Fee amounts are for Super Admin / Admin only (SRS §5.4).
-  const monthlyFee = isStaffAdmin(ctx.role) ? cls.monthlyFee : undefined;
   const mine = ctx.role === "teacher" ? new Set(await teacherClassSubjectIds(ctx.userId, ctx.academyId)) : null;
   return {
     ...cls,
-    monthlyFee,
     subjects: subjectRows.map((s) => ({ ...s, mine: mine ? mine.has(s.id) : true })) as (ClassSubjectRow & { mine: boolean })[],
   };
 }
