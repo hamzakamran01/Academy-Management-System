@@ -2,7 +2,7 @@ import "server-only";
 // NOTE: correlated subqueries reference outer columns as quoted "table"."column".
 // Drizzle prints bare "id" for single-table selects, which would bind to the inner table.
 import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "@/server/db";
+import { db, type Tx } from "@/server/db";
 import {
   academicYears,
   classes,
@@ -10,6 +10,7 @@ import {
   classSubjectTeachers,
   enrollments,
   holidays,
+  roleAssignments,
   subjects,
   users,
 } from "@/server/db/schema";
@@ -239,20 +240,74 @@ export async function getClassDetail(ctx: Ctx, id: string) {
 export async function addClassSubject(ctx: Ctx, classId: string, subjectId: string, teacherId?: string | null) {
   assertAdmin(ctx);
   await db.transaction(async (tx) => {
-    const [cls] = await tx.select({ name: classes.name }).from(classes).where(and(eq(classes.id, classId), eq(classes.academyId, ctx.academyId)));
+    const [cls] = await tx.select({ name: classes.name }).from(classes)
+      .where(and(eq(classes.id, classId), eq(classes.academyId, ctx.academyId), isNull(classes.archivedAt))).for("update");
     if (!cls) throw notFound("Class");
-    const [existing] = await tx.select().from(classSubjects).where(and(eq(classSubjects.classId, classId), eq(classSubjects.subjectId, subjectId)));
-    let csId: string;
-    if (existing) {
-      if (!existing.archivedAt) throw conflict("DUPLICATE", "This subject is already in the class");
-      await tx.update(classSubjects).set({ archivedAt: null }).where(eq(classSubjects.id, existing.id));
-      csId = existing.id;
-    } else {
-      const [row] = await tx.insert(classSubjects).values({ classId, subjectId }).returning();
-      csId = row!.id;
-    }
-    if (teacherId) await tx.insert(classSubjectTeachers).values({ classSubjectId: csId, teacherId, fromDate: todayPkt() });
-    await logActivity(tx, ctx, { action: "class_subject.add", entityType: "class_subject", entityId: csId, summary: `Added subject to ${cls.name}` });
+    await assertAssignableSubject(tx, ctx, subjectId);
+    if (teacherId) await assertActiveTeacher(tx, ctx, teacherId);
+    await addSubjectToClass(tx, ctx, { id: classId, name: cls.name }, subjectId, teacherId);
+  });
+}
+
+async function assertAssignableSubject(tx: Tx, ctx: Ctx, subjectId: string) {
+  const [subject] = await tx.select({ id: subjects.id }).from(subjects)
+    .where(and(eq(subjects.id, subjectId), eq(subjects.academyId, ctx.academyId), isNull(subjects.archivedAt)));
+  if (!subject) throw notFound("Subject");
+}
+
+async function assertActiveTeacher(tx: Tx, ctx: Ctx, teacherId: string) {
+  const [teacher] = await tx.select({ id: users.id }).from(users)
+    .innerJoin(roleAssignments, and(eq(roleAssignments.userId, users.id), eq(roleAssignments.role, "teacher"), eq(roleAssignments.active, true)))
+    .where(and(eq(users.id, teacherId), eq(users.academyId, ctx.academyId), eq(users.status, "active")));
+  if (!teacher) throw notFound("Active teacher");
+}
+
+async function addSubjectToClass(tx: Tx, ctx: Ctx, cls: { id: string; name: string }, subjectId: string, teacherId?: string | null) {
+  const [row] = await tx.insert(classSubjects)
+    .values({ classId: cls.id, subjectId })
+    .onConflictDoUpdate({
+      target: [classSubjects.classId, classSubjects.subjectId],
+      set: { archivedAt: null },
+      setWhere: sql`${classSubjects.archivedAt} is not null`,
+    })
+    .returning({ id: classSubjects.id });
+  if (!row) throw conflict("DUPLICATE", "This subject is already in the class");
+  await logActivity(tx, ctx, { action: "class_subject.add", entityType: "class_subject", entityId: row.id, summary: `Added subject to ${cls.name}` });
+  if (teacherId) await changeSubjectTeacher(tx, ctx, row.id, teacherId);
+}
+
+export async function teacherAssignmentOptions(ctx: Ctx) {
+  if (ctx.role !== "super_admin") throw forbidden();
+  const [classList, subjectList] = await Promise.all([listClasses(ctx), listSubjects(ctx.academyId)]);
+  const assignments = classList.length ? await db
+    .select({ classId: classSubjects.classId, subjectId: classSubjects.subjectId, teacherId: classSubjectTeachers.teacherId, teacherName: users.name })
+    .from(classSubjects)
+    .leftJoin(classSubjectTeachers, and(eq(classSubjectTeachers.classSubjectId, classSubjects.id), isNull(classSubjectTeachers.toDate)))
+    .leftJoin(users, eq(users.id, classSubjectTeachers.teacherId))
+    .where(and(inArray(classSubjects.classId, classList.map((cls) => cls.id)), isNull(classSubjects.archivedAt))) : [];
+  return {
+    classes: classList.map(({ id, name, shift }) => ({ id, name, shift })),
+    subjects: subjectList.map(({ id, name }) => ({ id, name })),
+    assignments,
+  };
+}
+
+export async function assignTeacherFromProfile(ctx: Ctx, teacherId: string, input: { classId: string; subjectId: string; previousTeacherId: string | null }) {
+  if (ctx.role !== "super_admin") throw forbidden();
+  const year = await requireCurrentYear(ctx.academyId);
+  await db.transaction(async (tx) => {
+    const [cls] = await tx.select({ id: classes.id, name: classes.name }).from(classes)
+      .where(and(eq(classes.id, input.classId), eq(classes.academyId, ctx.academyId), eq(classes.academicYearId, year.id), isNull(classes.archivedAt)))
+      .for("update");
+    if (!cls) throw notFound("Current class");
+    await assertAssignableSubject(tx, ctx, input.subjectId);
+    await assertActiveTeacher(tx, ctx, teacherId);
+    const [classSubject] = await tx.select({ id: classSubjects.id }).from(classSubjects)
+      .where(and(eq(classSubjects.classId, cls.id), eq(classSubjects.subjectId, input.subjectId), isNull(classSubjects.archivedAt)))
+      .for("update");
+    if (classSubject) await changeSubjectTeacher(tx, ctx, classSubject.id, teacherId, input.previousTeacherId);
+    else if (input.previousTeacherId) throw conflict("ASSIGNMENT_CHANGED", "The assignment changed. Close the form and refresh to try again.");
+    else await addSubjectToClass(tx, ctx, cls, input.subjectId, teacherId);
   });
 }
 
@@ -271,27 +326,41 @@ export async function removeClassSubject(ctx: Ctx, classSubjectId: string) {
 /** BR-ORG-04: close the open assignment (to = yesterday) and open a new one from today. */
 export async function assignTeacher(ctx: Ctx, classSubjectId: string, teacherId: string | null) {
   assertAdmin(ctx);
-  const today = todayPkt();
   await db.transaction(async (tx) => {
-    const [open] = await tx
-      .select()
-      .from(classSubjectTeachers)
-      .where(and(eq(classSubjectTeachers.classSubjectId, classSubjectId), isNull(classSubjectTeachers.toDate)));
-    if (open?.teacherId === teacherId) return;
-    if (open) {
-      // Same-day reassignment: the old row would end before it started — just replace it.
-      if (open.fromDate >= today) await tx.delete(classSubjectTeachers).where(eq(classSubjectTeachers.id, open.id));
-      else await tx.update(classSubjectTeachers).set({ toDate: addDays(today, -1) }).where(eq(classSubjectTeachers.id, open.id));
-    }
-    if (teacherId) await tx.insert(classSubjectTeachers).values({ classSubjectId, teacherId, fromDate: today });
-    await logActivity(tx, ctx, {
-      action: "class_subject.assign_teacher",
-      entityType: "class_subject",
-      entityId: classSubjectId,
-      summary: "Changed subject teacher",
-      before: { teacherId: open?.teacherId ?? null },
-      after: { teacherId },
-    });
+    const [classSubject] = await tx.select({ id: classSubjects.id }).from(classSubjects)
+      .innerJoin(classes, eq(classes.id, classSubjects.classId))
+      .where(and(eq(classSubjects.id, classSubjectId), eq(classes.academyId, ctx.academyId), isNull(classes.archivedAt), isNull(classSubjects.archivedAt)))
+      .for("update", { of: classSubjects });
+    if (!classSubject) throw notFound("Class subject");
+    if (teacherId) await assertActiveTeacher(tx, ctx, teacherId);
+    await changeSubjectTeacher(tx, ctx, classSubjectId, teacherId);
+  });
+}
+
+async function changeSubjectTeacher(tx: Tx, ctx: Ctx, classSubjectId: string, teacherId: string | null, expectedTeacherId?: string | null) {
+  const today = todayPkt();
+  const [open] = await tx
+    .select()
+    .from(classSubjectTeachers)
+    .where(and(eq(classSubjectTeachers.classSubjectId, classSubjectId), isNull(classSubjectTeachers.toDate)));
+  const previous = open?.teacherId ?? null;
+  if (previous === teacherId) return;
+  if (expectedTeacherId !== undefined && previous !== expectedTeacherId) {
+    throw conflict("ASSIGNMENT_CHANGED", "The assignment changed. Close the form and refresh to try again.");
+  }
+  if (open) {
+    // Same-day reassignment: the old row would end before it started — just replace it.
+    if (open.fromDate >= today) await tx.delete(classSubjectTeachers).where(eq(classSubjectTeachers.id, open.id));
+    else await tx.update(classSubjectTeachers).set({ toDate: addDays(today, -1) }).where(eq(classSubjectTeachers.id, open.id));
+  }
+  if (teacherId) await tx.insert(classSubjectTeachers).values({ classSubjectId, teacherId, fromDate: today });
+  await logActivity(tx, ctx, {
+    action: "class_subject.assign_teacher",
+    entityType: "class_subject",
+    entityId: classSubjectId,
+    summary: "Changed subject teacher",
+    before: { teacherId: open?.teacherId ?? null },
+    after: { teacherId },
   });
 }
 

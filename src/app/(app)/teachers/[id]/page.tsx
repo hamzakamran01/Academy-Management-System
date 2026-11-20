@@ -12,6 +12,8 @@ import { formatPhone } from "@/lib/phone";
 import { requireCtx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
 import { getAcademy } from "@/server/modules/academy";
+import { teacherAssignmentOptions } from "@/server/modules/org";
+import { AssignSubject } from "./assign-subject";
 import { teacherProfile } from "@/server/modules/users";
 import { teacherSummary } from "@/server/modules/admin";
 import { teacherConsistency, teacherLogsForOffice } from "@/server/modules/teaching";
@@ -28,11 +30,12 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   });
-  const [academy, summary, [consistency], logs] = await Promise.all([
+  const [academy, summary, [consistency], logs, options] = await Promise.all([
     getAcademy(ctx.academyId),
     teacherSummary(ctx, id),
     teacherConsistency(ctx, { count: 10, teacherId: id }),
     teacherLogsForOffice(ctx, id, 10),
+    ctx.role === "super_admin" && t.active ? teacherAssignmentOptions(ctx) : null,
   ]);
 
   return (
@@ -54,6 +57,36 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
           <AccountActions userId={t.id} role="teacher" name={t.name} phone={t.phone} active={t.active} academyName={academy.name} />
         </CardBody>
       </Card>
+
+      <section className="mb-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold">Teaching this year</h2>
+          {!!options?.classes.length && !!options.subjects.length && <AssignSubject {...options} teacherId={id} teacherName={t.name} />}
+        </div>
+        {options && !options.classes.length && <p className="mb-3 text-sm text-muted"><Link href="/classes" className="font-medium text-primary underline">Add a class</Link> to assign a subject.</p>}
+        {options && !!options.classes.length && !options.subjects.length && <p className="mb-3 text-sm text-muted"><Link href="/subjects" className="font-medium text-primary underline">Add a subject</Link> to assign it here.</p>}
+        {t.assignments.length ? (
+          <ListCard>
+            {t.assignments.map((a) => (
+              <ListRow
+                key={a.classSubjectId}
+                href={`/classes/${a.classId}`}
+                leading={
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-fg">
+                    <BookOpen className="size-5" aria-hidden />
+                  </span>
+                }
+                title={`${a.subjectName} · ${a.className}`}
+                subtitle={`Since ${formatDate(a.fromDate)}`}
+              />
+            ))}
+          </ListCard>
+        ) : (
+          <Card>
+            <EmptyState icon={BookOpen} title="No subjects assigned" />
+          </Card>
+        )}
+      </section>
 
       <Card className="mb-5">
         <CardHeader title="Last 4 weeks" description={`${summary.workingDays} working days · ${summary.subjects} subject${summary.subjects === 1 ? "" : "s"}`} />
@@ -93,28 +126,6 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
-      <SectionTitle>Teaching this year</SectionTitle>
-      {t.assignments.length ? (
-        <ListCard>
-          {t.assignments.map((a) => (
-            <ListRow
-              key={a.classSubjectId}
-              href={`/classes/${a.classId}`}
-              leading={
-                <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-fg">
-                  <BookOpen className="size-5" aria-hidden />
-                </span>
-              }
-              title={`${a.subjectName} · ${a.className}`}
-              subtitle={`Since ${formatDate(a.fromDate)}`}
-            />
-          ))}
-        </ListCard>
-      ) : (
-        <Card>
-          <EmptyState icon={BookOpen} title="No subjects assigned" description="Assign this teacher from a class's Subjects section." />
-        </Card>
-      )}
     </>
   );
 }

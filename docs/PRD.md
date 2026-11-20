@@ -208,7 +208,7 @@ On desktop (≥ 1024 px) the same items appear as a left sidebar with wider tabl
 | FR-ORG-03 | Working days of the week (default Mon–Sat). | M |
 | FR-ORG-04 | **Add class:** name, level/grade (for ordering), optional shift (Morning/Evening), class teacher, optional capacity. | M |
 | FR-ORG-05 | **Subjects:** academy-wide subject list (e.g. Physics, Math); attach subjects to a class. | M |
-| FR-ORG-06 | **Assign teacher** to each class-subject (one teacher per class-subject; changing the teacher keeps history of who taught when). | M |
+| FR-ORG-06 | **Assign teacher** to each class-subject. Super Admins can also pick the class and subject from the teacher’s profile. Each class-subject has one current teacher, and replacements preserve teaching history. | M |
 | FR-ORG-07 | **Remove class:** allowed only when the class has no active students — the screen shows how many students need to be moved first and offers **Move students** to another class. Removed classes are archived (history stays: attendance, results, fees). | M |
 | FR-ORG-08 | Holidays: date or date range with name; visible to all; excluded from attendance and syllabus pace. | M |
 | FR-ORG-09 | Student fees follow the student across classes (see FEE). | M |
