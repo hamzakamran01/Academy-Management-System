@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CheckCircle2, History, Phone, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -173,14 +174,19 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
         <div className="space-y-4">
           {ctx.role === "super_admin" && (
             <Card>
-              <CardHeader title="Monthly fee" description={fee?.note ?? undefined} />
+              <CardHeader title="Fee amounts" description={fee?.note ?? undefined} />
               <CardBody className="flex flex-wrap items-center justify-between gap-3">
-                {fee ? <span className="tabular text-xl font-bold">{formatMoney(fee.monthlyFee)}</span> : <Badge tone="warning">Fee needed</Badge>}
-                <StudentFeeEditor studentId={id} name={s.name} monthlyFee={fee?.monthlyFee} note={fee?.note} />
+                {fee ? (
+                  <div className="space-y-1 text-sm">
+                    <p>Monthly fee <strong className="tabular">{formatMoney(fee.monthlyFee)}</strong></p>
+                    <p>Paper money <strong className="tabular">{fee.paperFee != null ? formatMoney(fee.paperFee) : "Not charged"}</strong></p>
+                  </div>
+                ) : <Badge tone="warning">Fee needed</Badge>}
+                <StudentFeeEditor studentId={id} name={s.name} monthlyFee={fee?.monthlyFee} paperFee={fee?.paperFee} note={fee?.note} />
               </CardBody>
             </Card>
           )}
-          <FeesTab ctxRole={ctx.role} rows={await studentFeeRows(ctx, id)} />
+          <FeesTab rows={await studentFeeRows(ctx, id)} />
         </div>
       )}
 
@@ -222,30 +228,52 @@ function ResultsTab({ data }: { data: Awaited<ReturnType<typeof studentResults>>
   );
 }
 
-function FeesTab({ rows, ctxRole }: { rows: Awaited<ReturnType<typeof studentFeeRows>>; ctxRole: string }) {
-  if (!rows.length) return <EmptyState icon={Receipt} title="No fee months yet" description="Monthly fee rows are created on the 1st of each month." />;
+function FeesTab({ rows }: { rows: Awaited<ReturnType<typeof studentFeeRows>> }) {
+  if (!rows.length) return <EmptyState icon={Receipt} title="No fee records yet" description="Monthly fee records are created on the first of each month." />;
   return (
-    <ListCard>
-      {rows.map((r) => (
-        <ListRow
-          key={r.id}
-          title={formatMonth(r.month)}
-          subtitle={
-            r.status === "paid" && r.markedAt
-              ? `Paid ${formatDate(r.markedAt.toISOString().slice(0, 10))}${r.markedByName ? ` · by ${r.markedByName}` : ""}`
-              : r.status === "waived"
-                ? `Waived${r.waiveReason ? ` — ${r.waiveReason}` : ""}`
-                : r.className
-          }
-          trailing={
-            <div className="flex items-center gap-3">
-              {r.amount !== undefined && ctxRole !== "teacher" && <span className="tabular text-sm font-semibold">{formatMoney(r.amount)}</span>}
-              <StatusBadge status={r.status} />
+    <Card>
+      <CardHeader title="Monthly payment history" />
+      <ul className="divide-y divide-border border-t border-border">
+        {rows.map((record) => (
+          <li key={record.id} className="px-4 py-4">
+            <p className="font-semibold">{formatMonth(record.month)}</p>
+            <p className="mt-0.5 text-xs text-muted">{record.className}</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <ChargeHistory label="Monthly fee" amount={record.amount} status={record.status} paidAt={record.status === "paid" ? record.markedAt : null}
+                detail={record.status === "waived" ? record.waiveReason : record.markedByName} />
+              {record.paperAmount != null && (
+                <ChargeHistory label="Paper money" amount={record.paperAmount} status={record.paperPaidAt ? "paid" : "unpaid"} paidAt={record.paperPaidAt} />
+              )}
             </div>
-          }
-        />
-      ))}
-    </ListCard>
+            {record.classId && (
+              <Link href={`/fees/class/${record.classId}?month=${record.month}`} className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-primary hover:underline">
+                Open collection list
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function ChargeHistory({ label, amount, status, paidAt, detail }: {
+  label: string;
+  amount?: number;
+  status: "paid" | "unpaid" | "waived";
+  paidAt?: Date | null;
+  detail?: string | null;
+}) {
+  return (
+    <div className="rounded-lg bg-surface-2 px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span>{label}{amount !== undefined && <> <strong className="tabular">{formatMoney(amount)}</strong></>}</span>
+        <StatusBadge status={status} />
+      </div>
+      {(paidAt || detail) && <p className="mt-1 text-xs text-muted">
+        {paidAt && `Paid on ${formatDate(paidAt.toISOString().slice(0, 10))}`}{detail && (paidAt ? ` · ${detail}` : detail)}
+      </p>}
+    </div>
   );
 }
 

@@ -200,6 +200,8 @@ Conventions: every table has `id` (UUID v7), `academy_id`, `created_at`, `update
 
 **student_fees** — `student_id`, `monthly_fee` (int ≥ 0), `note?`, `set_by`, `set_at`. Absence indicates that the Super Admin still needs to set a fee.
 
+**Paper money** is an optional amount on the student’s fee settings. Each monthly record stores the paper amount and its own payment date and collector. Paper payments and finance totals are independent of the regular monthly fee.
+
 **fee_rows** — `student_id`, `class_id` (class at creation), `month` (date, first day of month), `amount` (int ≥ 0, snapshot), `status` (unpaid | paid | waived), `marked_by?`, `marked_at?`, `note?`, `waive_reason?`, `version`. **Unique (`student_id`, `month`).**
 
 **salary_settings** — `user_id` (teacher/admin staff), `monthly_salary` (int ≥ 0), `effective_from` (first day of month), `set_by`. Effective salary for month M = latest row with `effective_from ≤ M`.

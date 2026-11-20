@@ -22,7 +22,7 @@ const assertOwner = (ctx: Ctx) => {
 const currentMonth = () => monthStart(todayPkt());
 
 // ─── Fee amounts (Super Admin) ──────────────────────────────────────────────
-export async function setStudentFee(ctx: Ctx, studentId: string, amount: number, note: string | null, alsoThisMonth: boolean) {
+export async function setStudentFee(ctx: Ctx, studentId: string, amount: number, note: string | null, alsoThisMonth: boolean, paperFee?: number) {
   assertOwner(ctx);
   const month = currentMonth();
   const settings = alsoThisMonth ? await getSettings(ctx.academyId) : null;
@@ -31,10 +31,11 @@ export async function setStudentFee(ctx: Ctx, studentId: string, amount: number,
     const [s] = await tx.select({ name: students.name }).from(students).where(and(eq(students.id, studentId), eq(students.academyId, ctx.academyId)));
     if (!s) throw notFound("Student");
     const [before] = await tx.select().from(studentFees).where(eq(studentFees.studentId, studentId));
+    const paperAmount = paperFee === undefined ? before?.paperFee ?? null : paperFee || null;
     await tx
       .insert(studentFees)
-      .values({ studentId, monthlyFee: amount, note, setBy: ctx.userId })
-      .onConflictDoUpdate({ target: studentFees.studentId, set: { monthlyFee: amount, note, setBy: ctx.userId, setAt: new Date() } });
+      .values({ studentId, monthlyFee: amount, paperFee: paperAmount, note, setBy: ctx.userId })
+      .onConflictDoUpdate({ target: studentFees.studentId, set: { monthlyFee: amount, paperFee: paperAmount, note, setBy: ctx.userId, setAt: new Date() } });
 
     let updated = false;
     if (alsoThisMonth) {
@@ -42,7 +43,11 @@ export async function setStudentFee(ctx: Ctx, studentId: string, amount: number,
         .set({ amount, version: sql`${feeRows.version} + 1` })
         .where(and(eq(feeRows.studentId, studentId), eq(feeRows.month, month), eq(feeRows.status, "unpaid")))
         .returning({ id: feeRows.id });
-      updated = changed.length > 0;
+      const paperChanged = paperFee === undefined ? [] : await tx.update(feeRows)
+        .set({ paperAmount })
+        .where(and(eq(feeRows.studentId, studentId), eq(feeRows.month, month), isNull(feeRows.paperPaidAt)))
+        .returning({ id: feeRows.id });
+      updated = changed.length > 0 || paperChanged.length > 0;
       if (!updated && !before) {
         const enrollment = await openEnrollment(tx, studentId);
         if (enrollment && enrollment.fromDate <= (settings?.feeRowOnJoin ? todayPkt() : month)) {
@@ -55,8 +60,8 @@ export async function setStudentFee(ctx: Ctx, studentId: string, amount: number,
       entityType: "student",
       entityId: studentId,
       summary: `Set monthly fee for ${s.name} to Rs ${amount.toLocaleString("en-PK")}`,
-      before: before ? { monthlyFee: before.monthlyFee, note: before.note } : null,
-      after: { monthlyFee: amount, note, alsoThisMonth, updated },
+      before: before ? { monthlyFee: before.monthlyFee, paperFee: before.paperFee, note: before.note } : null,
+      after: { monthlyFee: amount, paperFee: paperAmount, note, alsoThisMonth, updated },
       sensitivity: "finance_amount",
     });
     return { updated };
@@ -79,9 +84,9 @@ export async function generateMonthRows(academyId: string, month: string, actor:
     const created = await execRows<{ id: string }>(
       tx as never,
       sql`
-        insert into fee_rows (academy_id, student_id, class_id, month, amount)
+        insert into fee_rows (academy_id, student_id, class_id, month, amount, paper_amount)
         select distinct on (s.id) s.academy_id, s.id, e.class_id, ${month}::date,
-               sf.monthly_fee
+               sf.monthly_fee, sf.paper_fee
         from students s
         join enrollments e on e.student_id = s.id
         join student_fees sf on sf.student_id = s.id
@@ -111,7 +116,8 @@ async function loadRowForMarking(tx: Tx, ctx: Ctx, rowId: string) {
     .select({ row: feeRows, studentName: students.name })
     .from(feeRows)
     .innerJoin(students, eq(students.id, feeRows.studentId))
-    .where(and(eq(feeRows.id, rowId), eq(feeRows.academyId, ctx.academyId)));
+    .where(and(eq(feeRows.id, rowId), eq(feeRows.academyId, ctx.academyId)))
+    .for("update", { of: feeRows });
   if (!row) throw notFound("Fee row");
   return row;
 }
@@ -175,6 +181,28 @@ export async function markFee(ctx: Ctx, rowId: string, to: "paid" | "unpaid", no
   });
 }
 
+/** Paper money is collected independently of the tuition status. */
+export async function markPaperFee(ctx: Ctx, rowId: string, paid: boolean) {
+  if (!isStaffAdmin(ctx.role)) throw forbidden();
+  return db.transaction(async (tx) => {
+    const { row, studentName } = await loadRowForMarking(tx, ctx, rowId);
+    if (row.paperAmount == null) throw notFound("Paper money charge");
+    if (row.month > currentMonth()) throw badRequest("FUTURE_MONTH", "This charge is for a future month");
+    if (Boolean(row.paperPaidAt) === paid) return;
+    await tx.update(feeRows)
+      .set({ paperPaidAt: paid ? new Date() : null, paperPaidBy: paid ? ctx.userId : null })
+      .where(eq(feeRows.id, rowId));
+    await logActivity(tx, ctx, {
+      action: paid ? "fee_row.paper_paid" : "fee_row.paper_unpaid",
+      entityType: "fee_row",
+      entityId: rowId,
+      summary: `Marked paper money ${paid ? "paid" : "unpaid"} for ${studentName}, ${formatMonth(row.month)}`,
+      before: { paid: !paid },
+      after: { paid },
+    });
+  });
+}
+
 /** FR-FEE-07: Super Admin only, reason required; excluded from expected revenue. */
 export async function waiveFee(ctx: Ctx, rowId: string, reason: string) {
   assertOwner(ctx);
@@ -207,6 +235,8 @@ export type FeeListRow = {
   rollNo: string | null;
   status: "paid" | "unpaid" | "waived";
   amount?: number;
+  paperAmount?: number | null;
+  paperPaidAt?: Date | null;
   markedAt: Date | null;
   markedByName: string | null;
   note: string | null;
@@ -235,6 +265,8 @@ export async function classFeeList(ctx: Ctx, classId: string, month: string) {
       rollNo: sql<string | null>`(select e.roll_no from ${enrollments} e where e.student_id = ${students.id} and e.class_id = ${classId} order by e.to_date is null desc, e.from_date desc limit 1)`,
       status: feeRows.status,
       amount: feeRows.amount,
+      paperAmount: feeRows.paperAmount,
+      paperPaidAt: feeRows.paperPaidAt,
       markedAt: feeRows.markedAt,
       markedByName: users.name,
       note: feeRows.note,
@@ -246,7 +278,7 @@ export async function classFeeList(ctx: Ctx, classId: string, month: string) {
     .where(and(eq(feeRows.classId, classId), eq(feeRows.month, month)));
   rows.sort((a, b) => (Number(a.rollNo) || 9999) - (Number(b.rollNo) || 9999) || a.name.localeCompare(b.name));
   const amounts = seesFeeAmounts(ctx);
-  const items: FeeListRow[] = rows.map(({ amount, ...r }) => (amounts ? { ...r, amount } : r));
+  const items: FeeListRow[] = rows.map(({ amount, paperAmount, paperPaidAt, ...r }) => (amounts ? { ...r, amount, paperAmount, paperPaidAt } : r));
   const counts = countRows(rows);
   return {
     class: cls,
@@ -311,7 +343,7 @@ export async function parentFees(ctx: Ctx) {
   const kids = await parentStudentIds(ctx.userId);
   if (!kids.length) return [];
   const rows = await db
-    .select({ id: feeRows.id, studentId: feeRows.studentId, month: feeRows.month, amount: feeRows.amount, status: feeRows.status, markedAt: feeRows.markedAt })
+    .select({ id: feeRows.id, studentId: feeRows.studentId, month: feeRows.month, amount: feeRows.amount, status: feeRows.status, markedAt: feeRows.markedAt, paperAmount: feeRows.paperAmount, paperPaidAt: feeRows.paperPaidAt })
     .from(feeRows)
     .where(inArray(feeRows.studentId, kids.map((k) => k.id)))
     .orderBy(desc(feeRows.month));
@@ -333,6 +365,10 @@ export async function financeSummary(ctx: Ctx, month: string) {
         waived: sql<number>`coalesce(sum(${feeRows.amount}) filter (where ${feeRows.status} = 'waived'), 0)::int`,
         paidCount: sql<number>`count(*) filter (where ${feeRows.status} = 'paid')::int`,
         unpaidCount: sql<number>`count(*) filter (where ${feeRows.status} = 'unpaid')::int`,
+        paperExpected: sql<number>`coalesce(sum(${feeRows.paperAmount}), 0)::int`,
+        paperRecovered: sql<number>`coalesce(sum(${feeRows.paperAmount}) filter (where ${feeRows.paperPaidAt} is not null), 0)::int`,
+        paperPaidCount: sql<number>`count(${feeRows.paperPaidAt})::int`,
+        paperUnpaidCount: sql<number>`count(*) filter (where ${feeRows.paperAmount} is not null and ${feeRows.paperPaidAt} is null)::int`,
         waivedCount: sql<number>`count(*) filter (where ${feeRows.status} = 'waived')::int`,
       })
       .from(feeRows)
@@ -389,6 +425,13 @@ export async function financeSummary(ctx: Ctx, month: string) {
     recoveryPct: expected > 0 ? Math.round((recovered / expected) * 1000) / 10 : null,
     waivedAmount: agg?.waived ?? 0,
     counts: { paid: agg?.paidCount ?? 0, unpaid: agg?.unpaidCount ?? 0, waived: agg?.waivedCount ?? 0, total: agg?.rows ?? 0 },
+    paper: {
+      expected: agg?.paperExpected ?? 0,
+      recovered: agg?.paperRecovered ?? 0,
+      pending: (agg?.paperExpected ?? 0) - (agg?.paperRecovered ?? 0),
+      paidCount: agg?.paperPaidCount ?? 0,
+      unpaidCount: agg?.paperUnpaidCount ?? 0,
+    },
     byClass: byClass.map((c) => ({ ...c, pending: c.expected - c.recovered })),
     revenueAtCurrentFees: atCurrent?.total ?? 0,
     feeNotSetCount: atCurrent?.notSet ?? 0,
@@ -419,7 +462,7 @@ export async function financeTrend(ctx: Ctx, months = 12) {
 export async function studentFeeSettings(ctx: Ctx, studentIds: string[]) {
   assertOwner(ctx);
   if (!studentIds.length) return [];
-  return db.select({ studentId: studentFees.studentId, monthlyFee: studentFees.monthlyFee, note: studentFees.note })
+  return db.select({ studentId: studentFees.studentId, monthlyFee: studentFees.monthlyFee, paperFee: studentFees.paperFee, note: studentFees.note })
     .from(studentFees)
     .innerJoin(students, eq(students.id, studentFees.studentId))
     .where(and(eq(students.academyId, ctx.academyId), inArray(studentFees.studentId, studentIds)));
@@ -443,8 +486,11 @@ export async function studentFeeRows(ctx: Ctx, studentId: string) {
       id: feeRows.id,
       month: feeRows.month,
       className: classes.name,
+      classId: feeRows.classId,
       status: feeRows.status,
       amount: feeRows.amount,
+      paperAmount: feeRows.paperAmount,
+      paperPaidAt: feeRows.paperPaidAt,
       markedAt: feeRows.markedAt,
       markedByName: users.name,
       note: feeRows.note,
@@ -456,10 +502,10 @@ export async function studentFeeRows(ctx: Ctx, studentId: string) {
     .where(eq(feeRows.studentId, studentId))
     .orderBy(desc(feeRows.month));
   const amounts = seesFeeAmounts(ctx);
-  return rows.map(({ amount, markedByName, ...r }) => ({
+  return rows.map(({ amount, paperAmount, paperPaidAt, markedByName, ...r }) => ({
     ...r,
-    ...(amounts ? { amount } : {}),
+    ...(amounts ? { amount, paperAmount, paperPaidAt } : {}),
     markedByName: ctx.role === "parent" ? null : markedByName,
-  })) as { id: string; month: string; className: string; status: "paid" | "unpaid" | "waived"; amount?: number; markedAt: Date | null; markedByName: string | null; note: string | null; waiveReason: string | null }[];
+  })) as { id: string; month: string; className: string; classId: string; status: "paid" | "unpaid" | "waived"; amount?: number; paperAmount?: number | null; paperPaidAt?: Date | null; markedAt: Date | null; markedByName: string | null; note: string | null; waiveReason: string | null }[];
 }
 

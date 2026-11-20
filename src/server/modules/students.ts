@@ -94,6 +94,7 @@ export type StudentInput = {
   rollNo?: string | null;
   excludedClassSubjectIds?: string[];
   monthlyFee?: number;
+  paperFee?: number;
   parents: ParentInput[];
 };
 
@@ -130,7 +131,7 @@ async function setExclusions(tx: Tx, enrollmentId: string, classId: string, excl
 /** BR-STU-03 — one transaction. Returns setup links for newly created parents. */
 export async function addStudent(ctx: Ctx, input: StudentInput) {
   assertAdmin(ctx);
-  if (input.monthlyFee !== undefined && ctx.role !== "super_admin") throw forbidden("Only the owner can set student fees");
+  if ((input.monthlyFee !== undefined || input.paperFee !== undefined) && ctx.role !== "super_admin") throw forbidden("Only the owner can set student fees");
   if (ctx.role === "super_admin" && input.monthlyFee === undefined) {
     throw badRequest("FEE_REQUIRED", "Enter the monthly fee", { fields: { monthlyFee: "Enter a monthly fee or 0 for a full scholarship" } });
   }
@@ -167,13 +168,13 @@ export async function addStudent(ctx: Ctx, input: StudentInput) {
     const accounts = await linkParents(tx, ctx, s.id, s.guardianName, input.parents);
 
     if (input.monthlyFee !== undefined) {
-      await tx.insert(studentFees).values({ studentId: s.id, monthlyFee: input.monthlyFee, setBy: ctx.userId });
+      await tx.insert(studentFees).values({ studentId: s.id, monthlyFee: input.monthlyFee, paperFee: input.paperFee || null, setBy: ctx.userId });
       await logActivity(tx, ctx, {
         action: "fee.student_set",
         entityType: "student",
         entityId: s.id,
         summary: `Set monthly fee for ${s.name} at admission`,
-        after: { monthlyFee: input.monthlyFee },
+        after: { monthlyFee: input.monthlyFee, paperFee: input.paperFee || null },
         sensitivity: "finance_amount",
       });
     }

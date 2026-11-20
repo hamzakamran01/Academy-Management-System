@@ -12,6 +12,8 @@ import {
   financeSummary,
   generateMonthRows,
   markFee,
+  markPaperFee,
+  studentFeeRows,
   setStudentFee,
   waiveFee,
 } from "@/server/modules/fees";
@@ -175,5 +177,37 @@ describe("fees", () => {
     expect(copied?.monthlyFee).toBe(6200);
     expect(existing?.monthlyFee).toBe(5000);
     expect(billed).toMatchObject({ status: "paid", amount: 6000 });
+  });
+  it("tracks paper money separately and preserves paid paper amounts", async () => {
+    const student = await addStudent(owner, {
+      name: "Paper Money Student",
+      guardianName: "Guardian",
+      gender: "male",
+      classId,
+      admissionDate: todayPkt(),
+      monthlyFee: 4000,
+      paperFee: 250,
+      parents: [{ phone: "03158887012", relation: "mother" }],
+    });
+    const [first] = await studentFeeRows(owner, student.id);
+    expect(first).toMatchObject({ amount: 4000, status: "unpaid", paperAmount: 250, paperPaidAt: null });
+    await expect(markPaperFee(teacher, first!.id, true)).rejects.toMatchObject({ status: 403 });
+    await markPaperFee(admin, first!.id, true);
+    const [paid] = await studentFeeRows(owner, student.id);
+    expect(paid).toMatchObject({ status: "unpaid", paperAmount: 250, paperPaidAt: expect.any(Date) });
+    expect((await financeSummary(owner, month)).paper).toMatchObject({
+      expected: 250, recovered: 250, pending: 0, paidCount: 1, unpaidCount: 0,
+    });
+
+    await setStudentFee(owner, student.id, 4100, null, true, 350);
+    expect((await studentFeeRows(owner, student.id))[0]).toMatchObject({ amount: 4100, paperAmount: 250 });
+    const next = addMonths(month, 1);
+    await generateMonthRows(owner.academyId, next, owner);
+    expect((await studentFeeRows(owner, student.id))[0]).toMatchObject({ month: next, paperAmount: 350, paperPaidAt: null });
+
+    await markPaperFee(admin, first!.id, false);
+    const current = (await studentFeeRows(owner, student.id)).find((row) => row.month === month);
+    expect(current).toMatchObject({ status: "unpaid", paperAmount: 250, paperPaidAt: null });
+    expect((await financeSummary(owner, month)).paper).toMatchObject({ recovered: 0, pending: 250, unpaidCount: 1 });
   });
 });

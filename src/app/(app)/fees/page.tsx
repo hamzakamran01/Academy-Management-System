@@ -132,7 +132,8 @@ async function ParentFees({ ctx }: { ctx: Awaited<ReturnType<typeof requireCtx>>
       <div className="space-y-6">
         {kids.map((k) => {
           const mine = rows.filter((r) => r.studentId === k.id);
-          const unpaid = mine.filter((r) => r.status === "unpaid");
+          const unpaid = mine.filter((r) => r.status === "unpaid" || (r.paperAmount != null && !r.paperPaidAt));
+          const due = unpaid.reduce((sum, row) => sum + (row.status === "unpaid" ? row.amount : 0) + (row.paperPaidAt ? 0 : row.paperAmount ?? 0), 0);
           return (
             <section key={k.id}>
               <div className="mb-3 flex items-center gap-3">
@@ -144,22 +145,30 @@ async function ParentFees({ ctx }: { ctx: Awaited<ReturnType<typeof requireCtx>>
               </div>
               {unpaid.length > 0 && (
                 <Notice tone="warning" className="mb-3" title={`${unpaid.length} month${unpaid.length === 1 ? "" : "s"} unpaid`}>
-                  {formatMoney(unpaid.reduce((n, r) => n + r.amount, 0))} due — please pay at the academy office.
+                  {formatMoney(due)} due — please pay at the academy office.
                 </Notice>
               )}
               <Card>
                 <CardHeader title="Month by month" />
                 <ul className="divide-y divide-border border-t border-border">
                   {mine.map((r) => (
-                    <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+                    <li key={r.id} className="grid gap-2 px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{formatMonth(r.month)}</p>
                         <p className="text-[13px] text-muted">
                           {r.status === "paid" && r.markedAt ? `Paid on ${formatDate(r.markedAt.toISOString().slice(0, 10))}` : r.status === "waived" ? "Waived" : "Not paid yet"}
                         </p>
                       </div>
-                      <span className="tabular text-sm font-semibold">{formatMoney(r.amount)}</span>
-                      <StatusBadge status={r.status} />
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span>Monthly fee <strong className="tabular">{formatMoney(r.amount)}</strong></span>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      {r.paperAmount != null && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <span>Paper money <strong className="tabular">{formatMoney(r.paperAmount)}</strong></span>
+                          <StatusBadge status={r.paperPaidAt ? "paid" : "unpaid"} />
+                        </div>
+                      )}
                     </li>
                   ))}
                   {!mine.length && <li className="px-4 py-6 text-center text-sm text-muted">No fee months yet.</li>}

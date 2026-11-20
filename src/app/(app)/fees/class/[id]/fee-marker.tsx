@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, Hourglass, MinusCircle, MoreHorizontal, SearchX } from "lucide-react";
+import { Check, ReceiptText, MinusCircle, MoreHorizontal, SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Field, SearchInput, Textarea } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
@@ -31,11 +32,13 @@ export function FeeMarker({
   canMark,
   isOwner,
   showAmounts,
+  isPaper,
 }: {
   initial: MarkRow[];
   canMark: boolean;
   isOwner: boolean;
   showAmounts: boolean;
+  isPaper: boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
@@ -68,9 +71,10 @@ export function FeeMarker({
     patch(row.id, { status: to, markedAt: to === "paid" ? new Date().toISOString() : null, markedByName: to === "paid" ? "You" : null });
     setBusy((b) => new Set(b).add(row.id));
     try {
-      await api(`/fees/rows/${row.id}/${to}`, { body: {} });
+      if (isPaper) await api(`/fees/rows/${row.id}/paper`, { method: "PUT", body: { paid: to === "paid" } });
+      else await api(`/fees/rows/${row.id}/${to}`, { body: {} });
       if (!silent) {
-        toast(to === "paid" ? `${row.name} — Paid` : `${row.name} — Unpaid`, {
+        toast(to === "paid" ? `${row.name} · ${isPaper ? "Paper money" : "Monthly fee"} paid` : `${row.name} · ${isPaper ? "Paper money" : "Monthly fee"} unpaid`, {
           duration: 5000,
           action: { label: "Undo", onClick: () => void send({ ...row, status: to }, prev.status === "paid" ? "paid" : "unpaid", true) },
         });
@@ -128,7 +132,7 @@ export function FeeMarker({
             <li key={r.id} className="flex min-h-[68px] items-center gap-3 px-3 py-2.5 sm:px-4">
               <span className="tabular w-6 shrink-0 text-center text-sm font-semibold text-muted">{r.rollNo ?? "–"}</span>
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-[15px] font-medium leading-5">{r.name}</p>
+                <Link href={`/students/${r.studentId}?tab=fees`} className="line-clamp-2 text-[15px] font-medium leading-5 hover:text-primary hover:underline">{r.name}</Link>
                 <p className="mt-0.5 truncate text-xs text-muted">
                   {showAmounts && r.amount !== undefined && <span className="tabular font-medium text-fg/80">{formatMoney(r.amount)} · </span>}
                   {r.status === "paid" && r.markedAt
@@ -202,7 +206,7 @@ function PaidToggle({ paid, disabled, onChange, name }: { paid: boolean; disable
         paid ? "bg-success text-white shadow-xs" : "border-2 border-warning/70 bg-warning-soft text-warning-fg",
       )}
     >
-      {paid ? <Check className="size-[18px]" strokeWidth={2.6} aria-hidden /> : <Hourglass className="size-4" aria-hidden />}
+      {paid ? <Check className="size-[18px]" strokeWidth={2.6} aria-hidden /> : <ReceiptText className="size-4" aria-hidden />}
       {paid ? "Paid" : "Mark paid"}
     </button>
   );

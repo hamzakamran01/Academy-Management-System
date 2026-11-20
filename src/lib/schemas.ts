@@ -28,11 +28,12 @@ export const studentSchema = z.object({
   rollNo: z.string().trim().max(10).optional().nullable(),
   excludedClassSubjectIds: z.array(zId).max(30).optional(),
   monthlyFee: zRupees.optional(),
+  paperFee: zRupees.optional(),
   parents: z.array(parentSchema).min(1, "Add at least one parent").max(2, "At most 2 parents"),
 });
 
 export const studentUpdateSchema = studentSchema
-  .omit({ classId: true, parents: true, rollNo: true, monthlyFee: true })
+  .omit({ classId: true, parents: true, rollNo: true, monthlyFee: true, paperFee: true })
   .partial()
   .extend({ rollNo: z.string().trim().min(1).max(10).optional() });
 

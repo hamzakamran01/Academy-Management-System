@@ -1,4 +1,4 @@
-import { AlertTriangle, Banknote, CircleDollarSign, Hourglass, Landmark, Settings2, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, Banknote, CircleDollarSign, Hourglass, Landmark, ReceiptText, Settings2, TrendingUp, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RecoveryChart } from "@/components/charts/recovery-chart";
@@ -95,6 +95,15 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             <StatTile label="Active students" value={f.activeStudents.toLocaleString("en-PK")} icon={Users} tone="primary" href="/students" />
             <StatTile label="At current fees" value={formatMoneyCompact(f.revenueAtCurrentFees)} sub="If everyone pays / month" icon={Landmark} tone="success" />
           </div>
+
+          <Card className="mb-4">
+            <CardHeader title="Paper money" description={formatMonth(month)} action={<ReceiptText className="size-5 text-muted" aria-hidden />} />
+            <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div><p className="text-sm text-muted">Expected</p><p className="tabular text-lg font-semibold">{formatMoney(f.paper.expected)}</p></div>
+              <div><p className="text-sm text-muted">Collected · {f.paper.paidCount} paid</p><p className="tabular text-lg font-semibold text-success-fg">{formatMoney(f.paper.recovered)}</p></div>
+              <div><p className="text-sm text-muted">Due · {f.paper.unpaidCount} unpaid</p><p className="tabular text-lg font-semibold text-warning-fg">{formatMoney(f.paper.pending)}</p></div>
+            </CardBody>
+          </Card>
 
           <Card className="mb-4">
             <CardBody className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-3">

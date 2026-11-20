@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   CircleDashed,
+  CircleAlert,
   Clock,
   Hourglass,
   Info,
@@ -59,7 +60,7 @@ export function Badge({
 const STATUS: Record<string, { label: string; tone: Tone; icon: LucideIcon }> = {
   // fees
   paid: { label: "Paid", tone: "success", icon: CheckCircle2 },
-  unpaid: { label: "Unpaid", tone: "warning", icon: Hourglass },
+  unpaid: { label: "Unpaid", tone: "warning", icon: CircleAlert },
   waived: { label: "Waived", tone: "neutral", icon: MinusCircle },
   // salaries
   pending: { label: "Pending", tone: "warning", icon: Hourglass },

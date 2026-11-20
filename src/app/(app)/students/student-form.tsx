@@ -27,6 +27,7 @@ export type StudentFormValues = {
   rollNo: string;
   excluded: string[];
   monthlyFee: string;
+  paperFee: string;
   parents: Parent[];
 };
 
@@ -76,6 +77,7 @@ export function StudentForm({
     rollNo: "",
     excluded: [],
     monthlyFee: "",
+    paperFee: "",
     parents: [{ phone: "", name: "", relation: "father" }],
     ...initial,
   });
@@ -105,7 +107,7 @@ export function StudentForm({
               classId: v.classId,
               rollNo: v.rollNo || null,
               excludedClassSubjectIds: v.excluded,
-              ...(canSetFee && v.monthlyFee.trim() ? { monthlyFee: Number(v.monthlyFee) } : {}),
+              ...(canSetFee && v.monthlyFee.trim() ? { monthlyFee: Number(v.monthlyFee), paperFee: Number(v.paperFee) } : {}),
               parents: v.parents.filter((p) => p.phone.trim()).map((p) => ({ phone: p.phone, name: p.name || null, relation: p.relation })),
             },
           }),
@@ -237,12 +239,17 @@ export function StudentForm({
 
       {mode === "add" && (
         <Card>
-          <CardHeader title="Monthly fee" />
+          <CardHeader title="Fees" />
           <CardBody>
             {canSetFee ? (
-              <Field label="Amount (Rs)" required error={err("monthlyFee")} hint="Enter 0 for a full scholarship.">
+              <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Monthly fee (Rs)" required error={err("monthlyFee")} hint="Enter 0 for a full scholarship.">
                 {(props) => <Input {...props} type="number" inputMode="numeric" min={0} max={10000000} step={1} value={v.monthlyFee} onChange={(event) => set("monthlyFee", event.target.value)} />}
               </Field>
+              <Field label="Paper money (Rs)" optional error={err("paperFee")} hint="Leave blank if there is no paper charge.">
+                {(props) => <Input {...props} type="number" inputMode="numeric" min={0} max={10000000} step={1} value={v.paperFee} onChange={(event) => set("paperFee", event.target.value)} />}
+              </Field>
+              </div>
             ) : <p className="text-sm text-muted">The academy owner sets the monthly amount before the first payment record is created.</p>}
           </CardBody>
         </Card>
