@@ -8,11 +8,11 @@ import { Avatar, ListCard } from "@/components/ui/data";
 import { EmptyState } from "@/components/ui/feedback";
 import { formatMoney } from "@/lib/format";
 import { requireCtx } from "@/server/auth/session";
-import { studentFeeSettings } from "@/server/modules/fees";
+import { classPaperRates, studentFeeSettings } from "@/server/modules/fees";
 import { listClasses } from "@/server/modules/org";
 import { listStudents } from "@/server/modules/students";
 import { StudentSearch } from "../../students/student-filters";
-import { StudentFeeEditor } from "./fee-settings-client";
+import { ClassPaperEditor, StudentFeeEditor } from "./fee-settings-client";
 
 export const metadata: Metadata = { title: "Student fees" };
 
@@ -30,7 +30,13 @@ export default async function FeeSettingsPage({ searchParams }: { searchParams: 
   const { items, total } = showStudents
     ? await listStudents(ctx, { q, classId: selected?.id, missingFee, status: "active", limit: pageSize, offset: (page - 1) * pageSize })
     : { items: [], total: 0 };
-  const settings = new Map((await studentFeeSettings(ctx, items.map((student) => student.id))).map((fee) => [fee.studentId, fee]));
+  const rateClassIds = [...new Set([...(selected ? [selected.id] : []), ...items.flatMap((student) => student.classId ? [student.classId] : [])])];
+  const [feeSettings, classRates] = await Promise.all([
+    studentFeeSettings(ctx, items.map((student) => student.id)),
+    classPaperRates(ctx, rateClassIds),
+  ]);
+  const settings = new Map(feeSettings.map((fee) => [fee.studentId, fee]));
+  const rates = new Map(classRates.map((rate) => [rate.id, rate.paperFee]));
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   const href = (p: number, missing = missingFee, classId = selected?.id, term = q) => `/fees/settings?${new URLSearchParams({ ...(term ? { q: term } : {}), ...(classId ? { classId } : {}), ...(missing ? { missing: "1" } : {}), page: String(p) })}`;
 
@@ -45,6 +51,7 @@ export default async function FeeSettingsPage({ searchParams }: { searchParams: 
           </Link>
         ))}
       </nav>
+      {selected && <ClassPaperEditor key={selected.id} classId={selected.id} name={selected.name} amount={rates.get(selected.id) ?? null} />}
       <StudentSearch key={selected?.id ?? "all"} placeholder={selected ? `Search in ${selected.name}` : "Search students by name"} />
       <nav aria-label="Fee filters" className="mb-4 flex flex-wrap gap-2">
         <Link href={href(1, false)} aria-current={!missingFee ? "page" : undefined} className={buttonVariants({ variant: missingFee ? "secondary" : "soft", className: "min-h-12" })}>All students</Link>
@@ -56,6 +63,8 @@ export default async function FeeSettingsPage({ searchParams }: { searchParams: 
         <ListCard>
           {items.map((student) => {
             const fee = settings.get(student.id);
+            const classPaperFee = student.classId ? rates.get(student.classId) : null;
+            const paperFee = fee?.paperFee ?? classPaperFee;
             return (
               <li key={student.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 sm:px-5">
                 <Avatar name={student.name} size="sm" />
@@ -64,10 +73,10 @@ export default async function FeeSettingsPage({ searchParams }: { searchParams: 
                   <p className="break-words text-xs text-muted">{student.className ?? "No class"} · {student.registrationNo}</p>
                   <div className="mt-1 space-y-0.5 text-sm">{fee ? <>
                     <p>Monthly fee <strong className="tabular">{formatMoney(fee.monthlyFee)}</strong></p>
-                    {fee.paperFee != null && <p>Paper money <strong className="tabular">{formatMoney(fee.paperFee)}</strong></p>}
+                    <p>Paper money <strong className="tabular">{paperFee ? formatMoney(paperFee) : "No charge"}</strong> <span className="text-xs text-muted">· {fee.paperFee == null ? "Class rate" : "Individual"}</span></p>
                   </> : <Badge tone="warning">Fee needed</Badge>}</div>
                 </div>
-                <StudentFeeEditor studentId={student.id} name={student.name} monthlyFee={fee?.monthlyFee} paperFee={fee?.paperFee} note={fee?.note} />
+                <StudentFeeEditor studentId={student.id} name={student.name} monthlyFee={fee?.monthlyFee} paperFee={fee?.paperFee} classPaperFee={classPaperFee} note={fee?.note} />
               </li>
             );
           })}

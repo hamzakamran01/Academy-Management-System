@@ -62,12 +62,14 @@ export const classes = pgTable(
     level: integer("level").notNull().default(0),
     shift: text("shift"), // Morning / Evening / free text
     capacity: integer("capacity"),
+    paperFee: integer("paper_fee"),
     classTeacherId: uuid("class_teacher_id").references(() => users.id),
     archivedAt: ts("archived_at"),
     ...timestamps(),
   },
   (t) => [
     uniqueIndex("classes_year_name_uq").on(t.academicYearId, t.name).where(sql`${t.archivedAt} is null`),
+    check("classes_paper_fee_check", sql`${t.paperFee} > 0`),
     index("classes_teacher_idx").on(t.classTeacherId),
   ],
 );

@@ -107,7 +107,7 @@ export function StudentForm({
               classId: v.classId,
               rollNo: v.rollNo || null,
               excludedClassSubjectIds: v.excluded,
-              ...(canSetFee && v.monthlyFee.trim() ? { monthlyFee: Number(v.monthlyFee), paperFee: Number(v.paperFee) } : {}),
+              ...(canSetFee && v.monthlyFee.trim() ? { monthlyFee: Number(v.monthlyFee), ...(v.paperFee.trim() ? { paperFee: Number(v.paperFee) } : {}) } : {}),
               parents: v.parents.filter((p) => p.phone.trim()).map((p) => ({ phone: p.phone, name: p.name || null, relation: p.relation })),
             },
           }),
@@ -246,7 +246,7 @@ export function StudentForm({
               <Field label="Monthly fee (Rs)" required error={err("monthlyFee")} hint="Enter 0 for a full scholarship.">
                 {(props) => <Input {...props} type="number" inputMode="numeric" min={0} max={10000000} step={1} value={v.monthlyFee} onChange={(event) => set("monthlyFee", event.target.value)} />}
               </Field>
-              <Field label="Paper money (Rs)" optional error={err("paperFee")} hint="Leave blank if there is no paper charge.">
+              <Field label="Paper money (Rs)" optional error={err("paperFee")} hint="Leave blank to use the class rate, or enter 0 to exempt this student.">
                 {(props) => <Input {...props} type="number" inputMode="numeric" min={0} max={10000000} step={1} value={v.paperFee} onChange={(event) => set("paperFee", event.target.value)} />}
               </Field>
               </div>

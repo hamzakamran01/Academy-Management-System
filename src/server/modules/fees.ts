@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, type Tx } from "@/server/db";
-import { academy, classes, enrollments, feeRows, studentFees, students, users } from "@/server/db/schema";
+import { classes, enrollments, feeRows, studentFees, students, users } from "@/server/db/schema";
 import type { Ctx } from "@/server/auth/session";
 import { rows as execRows } from "@/server/db/connect";
 import { addMonths, monthEnd, monthStart, todayPkt } from "@/lib/dates";
@@ -11,7 +11,7 @@ import { badRequest, conflict, forbidden, notFound } from "@/server/http";
 import { assertClassVisible, assertStudentVisible, parentStudentIds } from "@/server/policy/scope";
 import { getSettings, requireCurrentYear } from "./academy";
 import { logActivity } from "./audit";
-import { ensureFeeRow, openEnrollment } from "./fee-rows";
+import { ensureFeeRow, lockAcademyFeeRates, openEnrollment } from "./fee-rows";
 import { parentsOf, queueNotifications, withdrawRecent } from "./notify";
 
 /** Amounts are visible to Super Admin, Admin and the student's parents — never teachers (SRS §5.4). */
@@ -22,20 +22,20 @@ const assertOwner = (ctx: Ctx) => {
 const currentMonth = () => monthStart(todayPkt());
 
 // ─── Fee amounts (Super Admin) ──────────────────────────────────────────────
-export async function setStudentFee(ctx: Ctx, studentId: string, amount: number, note: string | null, alsoThisMonth: boolean, paperFee?: number) {
+export async function setStudentFee(ctx: Ctx, studentId: string, amount: number, note: string | null, alsoThisMonth: boolean, paperFee?: number | null) {
   assertOwner(ctx);
   const month = currentMonth();
   const settings = alsoThisMonth ? await getSettings(ctx.academyId) : null;
   return db.transaction(async (tx) => {
-    await tx.select({ id: academy.id }).from(academy).where(eq(academy.id, ctx.academyId)).for("update");
+    await lockAcademyFeeRates(tx, ctx.academyId);
     const [s] = await tx.select({ name: students.name }).from(students).where(and(eq(students.id, studentId), eq(students.academyId, ctx.academyId)));
     if (!s) throw notFound("Student");
     const [before] = await tx.select().from(studentFees).where(eq(studentFees.studentId, studentId));
-    const paperAmount = paperFee === undefined ? before?.paperFee ?? null : paperFee || null;
+    const paperRate = paperFee === undefined ? before?.paperFee ?? null : paperFee;
     await tx
       .insert(studentFees)
-      .values({ studentId, monthlyFee: amount, paperFee: paperAmount, note, setBy: ctx.userId })
-      .onConflictDoUpdate({ target: studentFees.studentId, set: { monthlyFee: amount, paperFee: paperAmount, note, setBy: ctx.userId, setAt: new Date() } });
+      .values({ studentId, monthlyFee: amount, paperFee: paperRate, note, setBy: ctx.userId })
+      .onConflictDoUpdate({ target: studentFees.studentId, set: { monthlyFee: amount, paperFee: paperRate, note, setBy: ctx.userId, setAt: new Date() } });
 
     let updated = false;
     if (alsoThisMonth) {
@@ -44,7 +44,11 @@ export async function setStudentFee(ctx: Ctx, studentId: string, amount: number,
         .where(and(eq(feeRows.studentId, studentId), eq(feeRows.month, month), eq(feeRows.status, "unpaid")))
         .returning({ id: feeRows.id });
       const paperChanged = paperFee === undefined ? [] : await tx.update(feeRows)
-        .set({ paperAmount })
+        .set({
+          paperAmount: paperRate === null
+            ? sql`(select c.paper_fee from classes c where c.id = ${feeRows.classId})`
+            : paperRate || null,
+        })
         .where(and(eq(feeRows.studentId, studentId), eq(feeRows.month, month), isNull(feeRows.paperPaidAt)))
         .returning({ id: feeRows.id });
       updated = changed.length > 0 || paperChanged.length > 0;
@@ -61,10 +65,57 @@ export async function setStudentFee(ctx: Ctx, studentId: string, amount: number,
       entityId: studentId,
       summary: `Set monthly fee for ${s.name} to Rs ${amount.toLocaleString("en-PK")}`,
       before: before ? { monthlyFee: before.monthlyFee, paperFee: before.paperFee, note: before.note } : null,
-      after: { monthlyFee: amount, paperFee: paperAmount, note, alsoThisMonth, updated },
+      after: { monthlyFee: amount, paperFee: paperRate, note, alsoThisMonth, updated },
       sensitivity: "finance_amount",
     });
     return { updated };
+  });
+}
+
+/** Class default for students who inherit their paper charge. */
+export async function classPaperRates(ctx: Ctx, classIds: string[]) {
+  assertOwner(ctx);
+  if (!classIds.length) return [];
+  return db.select({ id: classes.id, paperFee: classes.paperFee })
+    .from(classes)
+    .where(and(eq(classes.academyId, ctx.academyId), inArray(classes.id, classIds)));
+}
+
+export async function setClassPaperRate(ctx: Ctx, classId: string, amount: number, alsoThisMonth: boolean) {
+  assertOwner(ctx);
+  const year = await requireCurrentYear(ctx.academyId);
+  const month = currentMonth();
+  const paperFee = amount || null;
+  return db.transaction(async (tx) => {
+    await lockAcademyFeeRates(tx, ctx.academyId);
+    const scope = and(eq(classes.id, classId), eq(classes.academyId, ctx.academyId), eq(classes.academicYearId, year.id), isNull(classes.archivedAt));
+    const [before] = await tx.select({ name: classes.name, paperFee: classes.paperFee }).from(classes).where(scope).for("no key update");
+    if (!before) throw notFound("Current class");
+    await tx.update(classes).set({ paperFee }).where(scope);
+
+    const updated = alsoThisMonth ? await tx.update(feeRows)
+      .set({ paperAmount: paperFee })
+      .where(and(
+        eq(feeRows.academyId, ctx.academyId), eq(feeRows.classId, classId), eq(feeRows.month, month),
+        isNull(feeRows.paperPaidAt),
+        sql`${feeRows.paperAmount} is distinct from ${paperFee}`,
+        sql`exists (
+          select 1 from student_fees sf
+          join enrollments e on e.student_id = sf.student_id and e.to_date is null
+          where sf.student_id = ${feeRows.studentId} and sf.paper_fee is null and e.class_id = ${classId} and e.from_date <= ${todayPkt()}::date
+        )`,
+      ))
+      .returning({ id: feeRows.id }) : [];
+    await logActivity(tx, ctx, {
+      action: "fee.class_paper_set",
+      entityType: "class",
+      entityId: classId,
+      summary: `Updated class paper money for ${before.name}`,
+      before: { paperFee: before.paperFee },
+      after: { paperFee, alsoThisMonth, updated: updated.length },
+      sensitivity: "finance_amount",
+    });
+    return { updated: updated.length };
   });
 }
 
@@ -80,16 +131,17 @@ export async function generateMonthRows(academyId: string, month: string, actor:
   const end = monthEnd(month);
   return db.transaction(async (tx) => {
     // Serialize generation with rate edits so a new snapshot uses the committed rate.
-    await tx.select({ id: academy.id }).from(academy).where(eq(academy.id, academyId)).for("update");
+    await lockAcademyFeeRates(tx, academyId);
     const created = await execRows<{ id: string }>(
       tx as never,
       sql`
         insert into fee_rows (academy_id, student_id, class_id, month, amount, paper_amount)
         select distinct on (s.id) s.academy_id, s.id, e.class_id, ${month}::date,
-               sf.monthly_fee, sf.paper_fee
+               sf.monthly_fee, nullif(coalesce(sf.paper_fee, c.paper_fee), 0)
         from students s
         join enrollments e on e.student_id = s.id
         join student_fees sf on sf.student_id = s.id
+        join classes c on c.id = e.class_id
         where s.academy_id = ${academyId}
           and e.from_date <= ${settings.feeRowOnJoin ? end : month}::date
           and (e.to_date is null or e.to_date >= ${month}::date)

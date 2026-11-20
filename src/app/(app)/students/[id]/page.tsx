@@ -15,7 +15,7 @@ import { isStaffAdmin } from "@/lib/roles";
 import { requireCtx } from "@/server/auth/session";
 import { ApiError } from "@/server/http";
 import { getAcademy } from "@/server/modules/academy";
-import { studentFeeRows, studentFeeSettings } from "@/server/modules/fees";
+import { classPaperRates, studentFeeRows, studentFeeSettings } from "@/server/modules/fees";
 import { listClasses } from "@/server/modules/org";
 import { getStudentProfile, studentActivity } from "@/server/modules/students";
 import { studentResults } from "@/server/modules/results";
@@ -44,7 +44,10 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
   ];
 
   const [academy, classes] = admin ? await Promise.all([getAcademy(ctx.academyId), listClasses(ctx)]) : [null, []];
-  const [fee] = ctx.role === "super_admin" && tab === "fees" ? await studentFeeSettings(ctx, [id]) : [];
+  const [[fee], [classRate]] = ctx.role === "super_admin" && tab === "fees"
+    ? await Promise.all([studentFeeSettings(ctx, [id]), classPaperRates(ctx, s.current ? [s.current.classId] : [])])
+    : [[], []];
+  const effectivePaperFee = fee?.paperFee ?? classRate?.paperFee;
   const taking = s.subjects.filter((x) => !x.excluded);
 
   return (
@@ -179,10 +182,10 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
                 {fee ? (
                   <div className="space-y-1 text-sm">
                     <p>Monthly fee <strong className="tabular">{formatMoney(fee.monthlyFee)}</strong></p>
-                    <p>Paper money <strong className="tabular">{fee.paperFee != null ? formatMoney(fee.paperFee) : "Not charged"}</strong></p>
+                    <p>Paper money <strong className="tabular">{effectivePaperFee ? formatMoney(effectivePaperFee) : "No charge"}</strong></p>
                   </div>
                 ) : <Badge tone="warning">Fee needed</Badge>}
-                <StudentFeeEditor studentId={id} name={s.name} monthlyFee={fee?.monthlyFee} paperFee={fee?.paperFee} note={fee?.note} />
+                <StudentFeeEditor studentId={id} name={s.name} monthlyFee={fee?.monthlyFee} paperFee={fee?.paperFee} classPaperFee={classRate?.paperFee} note={fee?.note} />
               </CardBody>
             </Card>
           )}

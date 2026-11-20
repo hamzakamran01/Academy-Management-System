@@ -24,7 +24,7 @@ import { badRequest, conflict, forbidden, notFound } from "@/server/http";
 import { assertStudentVisible, parentStudentIds, teacherClassIds } from "@/server/policy/scope";
 import { getSettings, requireCurrentYear } from "./academy";
 import { logActivity } from "./audit";
-import { ensureFeeRow, hasHistorySql, openEnrollment, unpaidMonths } from "./fee-rows";
+import { ensureFeeRow, hasHistorySql, lockAcademyFeeRates, openEnrollment, unpaidMonths } from "./fee-rows";
 import { ensureUserWithRole, type CreatedAccount } from "./users";
 
 const assertAdmin = (ctx: Ctx) => {
@@ -140,6 +140,7 @@ export async function addStudent(ctx: Ctx, input: StudentInput) {
   const today = todayPkt();
 
   return db.transaction(async (tx) => {
+    await lockAcademyFeeRates(tx, ctx.academyId);
     const cls = await loadClassInYear(tx, ctx, year.id, input.classId);
     const rollNo = input.rollNo?.trim() || (await suggestRollNo(tx, cls.id));
     await assertRollFree(tx, cls.id, rollNo);
@@ -168,13 +169,13 @@ export async function addStudent(ctx: Ctx, input: StudentInput) {
     const accounts = await linkParents(tx, ctx, s.id, s.guardianName, input.parents);
 
     if (input.monthlyFee !== undefined) {
-      await tx.insert(studentFees).values({ studentId: s.id, monthlyFee: input.monthlyFee, paperFee: input.paperFee || null, setBy: ctx.userId });
+      await tx.insert(studentFees).values({ studentId: s.id, monthlyFee: input.monthlyFee, paperFee: input.paperFee ?? null, setBy: ctx.userId });
       await logActivity(tx, ctx, {
         action: "fee.student_set",
         entityType: "student",
         entityId: s.id,
         summary: `Set monthly fee for ${s.name} at admission`,
-        after: { monthlyFee: input.monthlyFee, paperFee: input.paperFee || null },
+        after: { monthlyFee: input.monthlyFee, paperFee: input.paperFee ?? null },
         sensitivity: "finance_amount",
       });
     }
@@ -324,6 +325,7 @@ export async function readmitStudent(ctx: Ctx, id: string, input: { classId: str
   assertAdmin(ctx);
   const [settings, year] = await Promise.all([getSettings(ctx.academyId), requireCurrentYear(ctx.academyId)]);
   return db.transaction(async (tx) => {
+    await lockAcademyFeeRates(tx, ctx.academyId);
     const [s] = await tx.select().from(students).where(and(eq(students.id, id), eq(students.academyId, ctx.academyId)));
     if (!s) throw notFound("Student");
     if (s.status === "active") throw conflict("ALREADY_ACTIVE", "Student is already active");

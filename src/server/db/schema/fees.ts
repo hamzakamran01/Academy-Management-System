@@ -32,7 +32,7 @@ export const studentFees = pgTable(
     setAt: ts("set_at").notNull().defaultNow(),
     ...timestamps(),
   },
-  (t) => [uniqueIndex("student_fees_student_uq").on(t.studentId), check("student_fees_amount_ck", sql`${t.monthlyFee} >= 0`), check("student_fees_paper_fee_check", sql`${t.paperFee} > 0`)],
+  (t) => [uniqueIndex("student_fees_student_uq").on(t.studentId), check("student_fees_amount_ck", sql`${t.monthlyFee} >= 0`), check("student_fees_paper_fee_check", sql`${t.paperFee} >= 0`)],
 );
 
 export const feeRows = pgTable(

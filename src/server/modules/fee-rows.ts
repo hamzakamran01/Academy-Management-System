@@ -1,11 +1,21 @@
 import "server-only";
 import { and, eq, isNull, isNotNull, or, sql } from "drizzle-orm";
 import type { Tx } from "@/server/db";
-import { enrollments, feeRows, studentFees } from "@/server/db/schema";
+import { academy, classes, enrollments, feeRows, studentFees } from "@/server/db/schema";
+
+/** Serialize rate changes with new bills, while allowing unrelated foreign-key checks. */
+export async function lockAcademyFeeRates(tx: Tx, academyId: string) {
+  await tx.select({ id: academy.id }).from(academy).where(eq(academy.id, academyId)).for("no key update");
+}
 
 /** BR-FEE-03: create this month's row on join / re-admit if none exists (idempotent). */
 export async function ensureFeeRow(tx: Tx, academyId: string, studentId: string, classId: string, month: string): Promise<boolean> {
-  const [fee] = await tx.select({ amount: studentFees.monthlyFee, paperAmount: studentFees.paperFee }).from(studentFees).where(eq(studentFees.studentId, studentId));
+  const [fee] = await tx.select({
+    amount: studentFees.monthlyFee,
+    paperAmount: sql<number | null>`nullif(coalesce(${studentFees.paperFee}, ${classes.paperFee}), 0)`,
+  }).from(studentFees)
+    .innerJoin(classes, and(eq(classes.id, classId), eq(classes.academyId, academyId)))
+    .where(eq(studentFees.studentId, studentId));
   if (!fee) return false;
   const inserted = await tx
     .insert(feeRows)

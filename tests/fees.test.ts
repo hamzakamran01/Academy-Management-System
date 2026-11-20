@@ -15,6 +15,7 @@ import {
   markPaperFee,
   studentFeeRows,
   setStudentFee,
+  setClassPaperRate,
   waiveFee,
 } from "@/server/modules/fees";
 import { addStudent, listStudents } from "@/server/modules/students";
@@ -209,5 +210,42 @@ describe("fees", () => {
     const current = (await studentFeeRows(owner, student.id)).find((row) => row.month === month);
     expect(current).toMatchObject({ status: "unpaid", paperAmount: 250, paperPaidAt: null });
     expect((await financeSummary(owner, month)).paper).toMatchObject({ recovered: 0, pending: 250, unpaidCount: 1 });
+  });
+  it("applies a class paper rate only to inheriting students and preserves paid records", async () => {
+    const inputs = {
+      guardianName: "Guardian",
+      gender: "male" as const,
+      classId,
+      admissionDate: todayPkt(),
+      monthlyFee: 5000,
+    };
+    const admit = (name: string, phone: string, paperFee?: number) =>
+      addStudent(owner, { ...inputs, name, paperFee, parents: [{ phone, relation: "father" }] });
+    await expect(setClassPaperRate(admin, classId, 300, true)).rejects.toMatchObject({ status: 403 });
+    const inherits = await admit("Inherits paper money", "03158887020");
+    await setClassPaperRate(owner, classId, 300, true);
+    const paid = await admit("Pays paper money", "03158887021");
+    const exempt = await admit("Exempt from paper money", "03158887022", 0);
+    const custom = await admit("Custom paper money", "03158887023", 450);
+
+    const row = async (id: string) => (await studentFeeRows(owner, id)).find((record) => record.month === month)!;
+    expect(await row(inherits.id)).toMatchObject({ amount: 5000, paperAmount: 300 });
+    expect(await row(paid.id)).toMatchObject({ amount: 5000, paperAmount: 300 });
+    const paidRow = await row(paid.id);
+    await markPaperFee(admin, paidRow.id, true);
+    await markFee(admin, paidRow.id, "paid");
+    await markFee(admin, paidRow.id, "unpaid");
+
+    await setClassPaperRate(owner, classId, 400, true);
+    expect(await row(paid.id)).toMatchObject({ status: "unpaid", paperAmount: 300, paperPaidAt: expect.any(Date) });
+    expect(await row(inherits.id)).toMatchObject({ amount: 5000, paperAmount: 400, paperPaidAt: null });
+    expect(await row(exempt.id)).toMatchObject({ paperAmount: null });
+    expect(await row(custom.id)).toMatchObject({ paperAmount: 450 });
+
+    await setStudentFee(owner, custom.id, 5000, null, true, null);
+    expect(await row(custom.id)).toMatchObject({ amount: 5000, paperAmount: 400 });
+    await setClassPaperRate(owner, classId, 0, true);
+    expect(await row(custom.id)).toMatchObject({ paperAmount: null });
+    expect(await row(paid.id)).toMatchObject({ paperAmount: 300, paperPaidAt: expect.any(Date) });
   });
 });
