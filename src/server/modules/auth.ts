@@ -126,10 +126,7 @@ export async function issueSetupToken(tx: Tx, userId: string, createdBy: string 
   return raw;
 }
 
-export function setupUrl(raw: string): string {
-  const base = process.env.APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-  return `${base}/setup/${raw}`;
-}
+export { setupUrl } from "@/lib/setup-url";
 
 export async function changePassword(userId: string, current: string, next: string) {
   const [u] = await db.select({ hash: users.passwordHash, phone: users.phone }).from(users).where(eq(users.id, userId));

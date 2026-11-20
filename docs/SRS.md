@@ -298,7 +298,7 @@ Business rules are numbered `BR-<module>-nn` and are testable.
 - **BR-AUTH-04** "Share on WhatsApp" opens `https://wa.me/<phone digits without +, e.g. 923001234567>?text=<URL-encoded message with link>` on the creator's device; the server never sends the message.
 - **BR-AUTH-05** Password: min 8 chars, not in a list of common passwords; hashed with Argon2id (memory ≥ 19 MiB, iterations ≥ 2).
 - **BR-AUTH-06** After 5 consecutive failures, `locked_until = now + 15 min`; login responses never reveal whether the phone exists ("Incorrect phone or password").
-- **BR-AUTH-07** Session: random 256-bit token in an HttpOnly, Secure, SameSite=Lax cookie; stored hashed; sliding expiry per role (Parent/Teacher 60 d, Admin 14 d, Super Admin 7 d); `last_seen_at` updated at most every 5 min.
+- **BR-AUTH-07** Session: random 256-bit token in an HttpOnly, Secure, SameSite=Lax cookie; stored hashed; server expiry slides by role (Parent/Teacher 60 d, Admin 14 d, Super Admin 7 d). The Super Admin browser cookie also renews with app activity. `last_seen_at` is updated at most every 5 min.
 - **BR-AUTH-08** Deactivation or role removal revokes all sessions for that role immediately; the client receives 401 on the next request and returns to login.
 - **BR-AUTH-09** Role context is part of the session. Switching role creates a new session context without re-entering the password if the user holds that role.
 

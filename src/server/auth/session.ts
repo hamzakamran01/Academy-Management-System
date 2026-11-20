@@ -30,24 +30,42 @@ function deviceLabel(ua: string | null): string {
   return `${br} on ${os}`;
 }
 
-export async function createSession(userId: string, role: Role): Promise<void> {
-  const token = newToken();
-  const days = SESSION_DAYS[role];
-  const ua = (await headers()).get("user-agent");
-  await db.insert(sessions).values({
-    userId,
-    role,
-    tokenHash: hashToken(token),
-    expiresAt: new Date(Date.now() + days * 86_400_000),
-    deviceLabel: deviceLabel(ua),
-  });
+async function setSessionCookie(token: string, role: Role) {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: days * 86_400,
+    maxAge: SESSION_DAYS[role] * 86_400,
   });
+}
+
+export async function createSession(userId: string, role: Role): Promise<void> {
+  const token = newToken();
+  const ua = (await headers()).get("user-agent");
+  await db.insert(sessions).values({
+    userId,
+    role,
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + SESSION_DAYS[role] * 86_400_000),
+    deviceLabel: deviceLabel(ua),
+  });
+  await setSessionCookie(token, role);
+}
+
+/** Renew only a live owner session. The same token remains subject to revocation. */
+export async function renewOwnerSession(): Promise<void> {
+  const ctx = await getCtx();
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!ctx || !token || ctx.role !== "super_admin") throw unauthorized();
+  const now = new Date();
+  const [renewed] = await db
+    .update(sessions)
+    .set({ expiresAt: new Date(now.getTime() + SESSION_DAYS.super_admin * 86_400_000) })
+    .where(and(eq(sessions.id, ctx.sessionId), isNull(sessions.revokedAt), gt(sessions.expiresAt, now)))
+    .returning({ id: sessions.id });
+  if (!renewed) throw unauthorized();
+  await setSessionCookie(token, ctx.role);
 }
 
 export async function destroySession(): Promise<void> {

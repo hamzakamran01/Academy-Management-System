@@ -8,11 +8,34 @@ import { CelebrationHost } from "@/components/motion/celebrate";
 const UnreadCtx = createContext(0);
 
 /** Client-side app context: unread count + service worker registration. */
-export function AppProviders({ unread, children }: { unread: number; children: ReactNode }) {
+export function AppProviders({ unread, renewOwner, children }: { unread: number; renewOwner: boolean; children: ReactNode }) {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
   }, []);
+  useEffect(() => {
+    if (!renewOwner) return;
+    let nextAttemptAt = 0;
+    function renew() {
+      const now = Date.now();
+      if (document.visibilityState !== "visible" || !navigator.onLine || now < nextAttemptAt) return;
+      nextAttemptAt = now + 5 * 60_000;
+      void fetch("/api/v1/auth/renew", { method: "POST", cache: "no-store" })
+        .then((response) => {
+          if (response.ok) nextAttemptAt = now + 30 * 60_000;
+        })
+        .catch(() => {});
+    }
+    renew();
+    document.addEventListener("visibilitychange", renew);
+    window.addEventListener("pointerdown", renew, { passive: true });
+    window.addEventListener("keydown", renew);
+    return () => {
+      document.removeEventListener("visibilitychange", renew);
+      window.removeEventListener("pointerdown", renew);
+      window.removeEventListener("keydown", renew);
+    };
+  }, [renewOwner]);
   return (
     <UnreadCtx.Provider value={unread}>
       {children}

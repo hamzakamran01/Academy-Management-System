@@ -20,7 +20,7 @@ export function OwnerHome({ d }: { d: D }) {
         <h2 id="owner-quick-actions" className="text-lg font-bold tracking-tight">Quick actions</h2>
         <div className="mt-3 grid gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
           <Link href="/students/new" className={buttonVariants({ className: "min-h-12 justify-start" })}><UserPlus aria-hidden /> Admit student <ArrowRight className="ms-auto" aria-hidden /></Link>
-          <Link href="/fees" className={buttonVariants({ variant: "secondary", className: "min-h-12 justify-start" })}><Wallet aria-hidden /> Record payments <ArrowRight className="ms-auto" aria-hidden /></Link>
+          <Link href="/fees" className={buttonVariants({ variant: "secondary", className: "min-h-12 justify-start" })}><Wallet aria-hidden /> Record fees <ArrowRight className="ms-auto" aria-hidden /></Link>
           <Link href="/fees/settings" className={buttonVariants({ variant: "secondary", className: "min-h-12 justify-start" })}><CircleDollarSign aria-hidden /> Set student fees <ArrowRight className="ms-auto" aria-hidden /></Link>
         </div>
       </section>

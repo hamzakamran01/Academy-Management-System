@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <AppProviders unread={unread?.n ?? 0}>
+    <AppProviders unread={unread?.n ?? 0} renewOwner={ctx.role === "super_admin"}>
     <div className="min-h-dvh">
       <OfflineBanner />
       <Sidebar role={ctx.role} roles={ctx.roles} name={ctx.name} academyName={academy.name} unread={unread?.n ?? 0} />

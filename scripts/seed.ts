@@ -11,6 +11,7 @@ import { parseArgs } from "node:util";
 import { and, eq, isNull } from "drizzle-orm";
 import { DEFAULT_SETTINGS } from "../src/lib/settings";
 import { normalizePhone } from "../src/lib/phone";
+import { setupUrl } from "../src/lib/setup-url";
 import { hashToken, newToken } from "../src/server/auth/crypto";
 import { connect } from "../src/server/db/connect";
 import * as s from "../src/server/db/schema";
@@ -90,9 +91,8 @@ async function main() {
       return raw;
     });
 
-    const base = process.env.APP_URL ?? "http://localhost:3000";
     console.log("\n  Setup link (valid 7 days, single use):");
-    console.log(`  ${base}/setup/${token}\n`);
+    console.log(`  ${setupUrl(token)}\n`);
   } finally {
     await conn.close();
   }

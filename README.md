@@ -107,7 +107,7 @@ Sign in at http://localhost:3000 with password **Campusly#2026**:
 | Variable | Needed for |
 |---|---|
 | `DATABASE_URL` | Postgres connection (or `pglite://memory` for the demo) |
-| `APP_URL` | Public URL used inside setup links shared on WhatsApp |
+| `APP_URL` | Setup-link origin for local or alternate deployments. Vercel production uses `https://kms-campusly.vercel.app`. |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web push — generate with `npm run vapid` |
 | `CRON_SECRET` | Protects `/api/v1/cron/*` |
 
